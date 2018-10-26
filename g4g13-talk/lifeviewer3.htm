@@ -5,7 +5,7 @@
 		<meta charset="UTF-8">
 		<meta name="LifeViewer" content="viewer textarea 60 hide">
 		<script src="lv-plugin.js"></script>
-		<title>#3: p30 circuits</title>
+		<title>#3: period 30 circuits</title>
 	</head>
 	<body>
 		<h2>High-bandwidth telegraph by Jean-Francois Handfield, Feb 2017</h2>
@@ -13,7 +13,11 @@
 		<div class="viewer">
 			<a href="" onclick="updateViewer(this); return false;">View Standalone</a><br>
 			<textarea rows=4 cols=75>
-#C Jormungant etc.
+#C Patterns/Life/Signal-Circuitry/high-bandwidth-telegraph.rle.gz
+#C  and Dean Hickerson's Patterns/Oscillators/DRH-oscillators.rle
+#C  in Golly's pattern collection -- width somewhat reduced
+#C  (and initial message garbled) to allow the pattern to fit in
+#C  LifeViewer better.
 x = 5874, y = 2924, rule = B3/S23
 2376bo$2374bobo$2359bo13bobo$2359b3o5b2o3bo2bo263b2o$2362bo4b2o4bobo
 259b2o2b2o$2361b2o11bobo258b2o2bob2o$2376bo263b3o2$2387b3o286bobo$
@@ -6881,15 +6885,13 @@ bo$3907b2o16b2o158b2o5b2o138b2o34b2o121b2o440bo166b2o4b2o$4534bo!
 #C [[ T 500 Y -206 STEP 2 "and eventually we can figure out" ]]
 #C [[ T 1000 X -2714 Y -105 Z 7 STEP 3 "how to store information" ]]
 #C [[ T 2000 Y -65 Z 3 ]]
-#C [[ T 2800 X -2357 Y 86 Z 1 ]]
-#C [[ T 3500 X 911 Y -656 STEP 1 ]] HATH CONW
-#C  T 4500 X 1464 Y 1215 Z 1
-#C  T 5000 X 741 Y 21 Z -6
-#C [[ T 3800 X 2644 Y 427 Z 2 ]]
-#C [[ T 4000 X 2132 Y 762 Z 3 ]]
-#C [[ T 4400 X 1464 Y 1215 Z 1 ]]
-#C [[ T 4450 X 741 Y 21 Z 1 ]]
-#C [[ T 4500 X 741 Y 21 Z -4 ]]
+#C [[ T 2800 X -2357 Y 86 Z 1 GPS 50 ]]
+#C [[ T 3500 X 911 Y -656 STEP 1 GPS 25 ]] HATH CONW
+#C [[ T 3800 X 2644 Y 427 Z 2 GPS 40 ]]
+#C [[ T 4000 X 2132 Y 762 Z 3 GPS 30 ]]
+#C [[ T 4400 X 1464 Y 1215 Z 1 GPS 20 ]]
+#C [[ T 4500 Z -1 GPS 60 ]]
+#C [[ T 5500 X 741 Y 21 Z -4 STEP 50 ]]
 #C Jormungant etc.
 			</textarea>
 			<br>
