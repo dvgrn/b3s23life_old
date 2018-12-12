@@ -1,0 +1,268 @@
+This file contains test runs that test for potential bugs in different aspects of the program. If you modify the program, it's a good idea to run these tests again.
+
+- Catalyst eat1.
+
+Initial pattern:
+../
+/./
+.//!
+
+Catalysts: eat1.
+Parameters: 2, 2, 5, 1.
+   -----
+   
+- Catalyst eat2.
+
+Initial pattern (should produce 3 patterns total):
+../
+/./
+.//!
+
+Catalysts: eat2.
+Parameters: 2, 2, 5, 1.
+   -----
+   
+- Catalyst snak.
+
+Initial pattern:
+../
+/./
+.//!
+
+Catalysts: snak.
+Parameters: 1, 1, 5, 1.
+   -----
+
+- Catalyst bloc.
+
+Initial pattern:
+.///
+../
+///!
+
+Catalysts: bloc.
+Parameters: 8, 8, 5, 1.
+   -----
+
+- Catalyst tubw.
+
+Initial pattern (should produce 3 patterns total):
+../
+/./
+.//!
+
+Catalysts: tubw.
+Parameters: 2, 2, 5, 1.
+   -----
+
+- Catalyst _tub.
+
+Initial pattern:
+./
+///
+/!
+
+Catalysts: _tub.
+Parameters: 20, 20, 5, 1.
+   -----
+
+- Catalyst boat.
+
+Initial pattern:
+./
+///
+/!
+
+Catalysts: boat.
+Parameters: 17, 17, 5, 1.
+   -----
+   
+- Run r-pentomino.
+
+Initial pattern:
+/
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+............/
+...........///
+............./!
+
+Catalysts: bloc.
+Parameters: 72, 72, 3, 1.
+   -----
+
+- Reaching the border.
+- Placing catalysts close to the border.
+
+Initial pattern:
+.../
+..../
+/.../
+.////!
+
+(Try other three directions also)
+
+Catalysts: eat1.
+Parameters: 30, 60, 8, 1.
+   -----
+
+- Live fixed cells.
+
+This pattern should run until gen. 4:
+/
+./
+../
+.../
+..../
+.....*
+....../
+.....//!
+
+Parameters: 10, 10, 1, 0.
+   -----
+
+- Dead fixed cells.
+
+This pattern should run until gen. 5:
+/
+./
+../
+.../
+..../
+...../
+.....,/
+.....//!
+
+Parameters: 10, 10, 1, 0.
+   -----
+
+- Detect inconsistencies in initial patterns:
+
+1)
+/./
+/,!
+
+2)
+/*!
+
+3)
+/*/
+//!
+   -----
+
+- Search for all possible combinations of catalysts:
+
+This pattern should generate 16 solutions:
+//...//
+/./././
+/...../
+.......
+/...../
+/./././
+//...//!
+
+Catalysts: snak.
+Parameters: 1, 1, 4, 4.
+   -----
+
+- Placing a catalyst in different generations:
+
+This pattern should generate 11 solutions:
+../
+/./
+.//!
+
+Catalysts: eat2.
+Parameters: 1, 10, 4, 1.
+   -----
+
+- Use of history[][] to prevent placing a catalyst in a specific location:
+
+Compare these initial patterns:
+1)
+../
+/./
+.//........./!
+
+2)
+../
+/./
+.//......../!
+
+3)
+../
+/./
+.//
+.
+.
+........../!
+
+Catalysts: snak
+Parameters: 9, 9, 3, 1.
+   -----
+
+- Fixed cells, both from user input and from catalysts, count for boardgen0[][]'s boundaries.
+- After putting a catalyst's fixed cell on top of a user's input's fixed cell and then removing the catalyst, the cell stays fixed.
+
+Initial pattern:
+../
+/./
+.//..,!
+
+Catalysts: snak.
+Parameters: 5, 5, 3, 1.
+   -----
+
+- A catalyst's live cell cannot be placed on top of a fixed dead cell.
+
+Compare these two initial patterns:
+1)
+../
+/./
+.//...,!
+
+2)
+../
+/./
+.//....,!
+
+Catalysts: snak.
+Parameters: 1, 1, 3, 1.
+   -----
+
+- A fixed dead cell occurring on top of a catalyst's starting cell:
+
+Compare these two initial patterns:
+1)
+../
+/./
+.//!
+
+2)
+../
+/./
+.//
+.....,!
+
+Catalysts: snak.
+Parameters: 5, 5, 4, 1.
+   -----
+
+- Catalysts sharing neighbor cells.
+
+Initial pattern:
+../.........../
+/./..........././
+.//...........//!
+
+Catalysts: eat1.
+Parameters: 4, 5, 3, 2.
