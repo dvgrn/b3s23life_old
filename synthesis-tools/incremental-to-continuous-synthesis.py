@@ -24,6 +24,23 @@
 #   following the first.  This should generally be set to 0 unless the
 #   construction produces an object that will move out of the way of the
 #   next recipe (generally a spaceship).
+#
+# Hard-coded assumptions include:
+#  -- each stage will match the next at T=4096, when auto-finding offset via XOR
+#     (might not work if a p3 or other non-p2^N object is built early)
+#  -- each stage settles by 256 ticks
+#  -- initial best_delay = 200 (seems to give adequate spacing before first collision)
+#
+# Especially with the default double-check setting of 100, if the search
+#   suddenly slows down at some point, watch the delay and step numbers
+#   reported in the status bar.  If at some stage the delay number stays
+#   at its initial value -- i.e., it stops ever going down as the step size
+#   counts down powers of two -- then there's something wrong with the recipe
+#   near that point.  The script is no longer finding valid matches.
+#
+# TODO:  catch the case where no valid matches are being found, and
+#        cancel the run, displaying progress so far so that the error
+#        in the incremental syntheses can be corrected.
 
 import golly as g
 
@@ -205,6 +222,8 @@ if site_step == 0:
 delay2 = int(g.getstring("Enter delay for 2nd construction (only relevant for spaceships)", "0"))
 offset = 100
 
+paranoidcheck = int(g.getstring("Enter number of ticks to check below binary search result (min=1)","100"))
+if paranoidcheck<1: g.exit("Invalid value for maximum ticks to double-check the binary search result.")
 srect = g.getselrect()
 cells = g.getcells(srect)
 cells = zip(cells[::2], cells[1::2])
@@ -240,24 +259,24 @@ for obj_list in obj_lists[1:]:
     sitex+=site_step                            #DMG
     g.select([sitex, sitey, site_step, siteh])  #DMG
     g.update()                                  #DMG
-    delay_list = []
     step = 512
     delay = best_delay + step
-    delay_list.append(delay)
 
     valid_state = post_state(current_state, obj_list, delay)
 
     while step:
+        g.show(str(count)+": count = " + str(step) + ", delay = " + str(delay))
         if post_state(current_state, obj_list, delay - step) == valid_state:
             delay -= step
-            delay_list.append(delay)
         step //= 2
         
     best_delay = delay
-    for i in range(1, 100):
+    for i in range(1, paranoidcheck):
+        g.show(str(count)+": count = " + str(step) + ", delay = " + str(delay) + " -- testing for valid state " + str(i))
         if post_state(current_state, obj_list, delay - i) == valid_state:
             best_delay = delay - i
-            delay_list.append(best_delay)
+            g.note(str(count)+": count = " + str(step) + ", delay = " + str(delay) + " -- found valid state " + str(i))
+            
 
     current_state += delay_construction(obj_list, best_delay)
     out_list.append((obj_list, best_delay))
