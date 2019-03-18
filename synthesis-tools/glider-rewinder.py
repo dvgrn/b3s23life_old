@@ -1,4 +1,5 @@
 # glider-rewinder.py
+# http://conwaylife.com/forums/viewtopic.php?f=9&t=1107
 # Version 0.81 -- alpha release
 # Dave Greene, 29 May 2013 9pm
 #  - fixed a bug in getenvelope() that prevented recognition of closely-spaced gliders or *WSSes
