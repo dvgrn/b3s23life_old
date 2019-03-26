@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v0.7.py, beta release
+# lifewiki-rlescraper-v0.8.py, beta release
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -9,23 +9,26 @@
 #    wide and less than 101 cells high (roughly matching Life Lexicon limits),
 #    and if no {pname}.cells file has already been uploaded to the server.
 #    On 6 February 2019, 695 .cells files created in this way were bulk-uploaded.
+# Version 0.8 also checks for capital letters in pnames, and complains if found.
+#    Also added a "noRLEheader" list for patterns where pattern size can't be
+#    determined from the header line of the raw RLE file.
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
 #
 # DONE:  add a check for {pname}_synth.rle,
 #        and create file for upload if not found in pattern collection
-# TODO:  check the contents of {pname}.rle, {pname}_synth.rle, and {pname}.cells,
-#        and report all cases of discrepancies.  The human running the 
-#        script should ideally resolve all these differences, either by
-#        reverting changes on the LifeWiki or by submitting the new
-#        version of the RLE (from the RLE: namespace) for upload.
-# TODO:  using the above check of downloaded RLE files, create
+# DONE:  using the above check of downloaded RLE files, create
 #        .cells versions of every 64x64 or smaller RLE on the LifeWiki
 #        Have to process the returned web page data (not just check for Not Found),
 #        remove any comments, find the header line, load the file into Golly,
 #        check the pattern's bounding box, and export modified comments
 #        and the correct ASCII pattern if everything seems to be in order.
+# TODO:  check the contents of {pname}.rle, {pname}_synth.rle, and {pname}.cells,
+#        and report all cases of discrepancies.  The human running the 
+#        script should ideally resolve all these differences, either by
+#        reverting changes on the LifeWiki or by submitting the new
+#        version of the RLE (from the RLE: namespace) for upload.
 # TODO:  Look also for JavaRLE / JavaCells links, upload any missing files.
 
 import golly as g
@@ -36,18 +39,24 @@ samplepath = "C:/users/{username}/Desktop/"
 outfolder = samplepath + "LWrle/"
 cellsfolder = samplepath + "LWcells/"
 
+if samplepath == "C:/users/{username}/Desktop/":
+  g.note("Please edit the output paths on lines 38-40 of the script before running this script.  " \
+       + "If samplepath, outfolder and cellsfolder do not point to folders that you have permission to write to, " \
+       + "the data collection process will eventually fail with an error.")
+  g.exit()
+
 toobigpatternslist = ["0e0pmetacell","caterloopillar","caterpillar","centipede","centipede caterloopillar", \
                       "collatz5nplus1simulator","demonoid","gemini","halfbakedknightship","hbkgun",         \
                       "linearpropagator","orthogonoid","parallelhbk","picalculator","shieldbug","succ",     \
                       "telegraph","waterbear"]
 
 def retrieveparam(article, param, s):
-    chunk = s[s.index(param):s.index(param)+256].replace("\n","|").replace("}","|")
-    if chunk.find("|")<0: g.exit("Weird chunk of HTML found in " + article + ":\n" + s[s.index(param):512])
-    pnamedef = chunk[:chunk.index("|")]
-    if pnamedef.find("=")<0: g.exit("Weird definition found in " + article + ":\n" + pnamedef)
-    pval=pnamedef[pnamedef.index("=")+1:].strip()
-    return pval
+  chunk = s[s.index(param):s.index(param)+256].replace("\n","|").replace("}","|")
+  if chunk.find("|")<0: g.exit("Weird chunk of HTML found in " + article + ":\n" + s[s.index(param):512])
+  pnamedef = chunk[:chunk.index("|")]
+  if pnamedef.find("=")<0: g.exit("Weird definition found in " + article + ":\n" + pnamedef)
+  pval=pnamedef[pnamedef.index("=")+1:].strip()
+  return pval
     
 # first collect all pages of non-redirect links from the Special:AllPages list
 linklist=[]
@@ -71,7 +80,7 @@ for url in linklist:
   endindex = html.find('<div class="printfooter">')
   if beginindex>-1:
     if endindex>-1:
-        html=html[beginindex:endindex]
+      html=html[beginindex:endindex]
     else:
       g.note("Couldn't find printfooter in HTML for " + url)
       html=""
@@ -91,7 +100,8 @@ for url in linklist:
 # now start collecting pname references from each article,
 #   with discoverers and discoveryears when possible
 pnamedict = {}
-# g.note(str(len(articlelist)))
+capitalizedpnames = []
+noRLEheader = []
 
 for item in articlelist: ###################################
   if item[:6]!="/wiki/":
@@ -118,6 +128,8 @@ for item in articlelist: ###################################
       discoverer=""
       discoveryear=""
     pname = retrieveparam(articlename, "pname",html)
+    if pname.lower() != pname:
+      capitalizedpnames += [pname]
     g.show(url + " : " + pname+", " + discoverer + ", " + discoveryear)
     html = html[html.index("pname")+5:]
     if pname not in pnamedict:
@@ -132,6 +144,8 @@ count = 0
 # g.note("Starting check of pnames")
 for item in sorted(pnamedict.iterkeys()):
   count +=1
+  g.show("Checking pname '" + item + "'")
+  g.update()
   data = pnamedict[item][:]
   while len(data)>4:
     dtemp = data[0:3]
@@ -154,12 +168,14 @@ for item in sorted(pnamedict.iterkeys()):
   try:
     response = urllib2.urlopen(url)
     html = response.read()
-    # g.note("TODO: collect size of pattern here\n"+html[:500])
-    match = re.search(r'x = ([0-9]*), y = ([0-9]*)', html)
+    match = re.search(r'x\s*=\s*([0-9]*),\s*y\s*=\s*([0-9]*)', html)
     if match:
       width = int(match.group(1))
       height = int(match.group(2))
-      hdrindex = html.find("\nx = ")+1
+      hdrindex = html.find("x = " + match.group(1) + ",")
+      if hdrindex == -1:
+        g.note("Problem found with pname '" + item + "' RLE header.")
+        hdrindex = 0
       nextnewline = html.find("\n",hdrindex)
       rleonly = html[nextnewline+1:]
       ascii=""
@@ -167,14 +183,18 @@ for item in sorted(pnamedict.iterkeys()):
         if line[0]!="#": break
         if line[1]==" ":
           comment = line[2:]
-        elif line[2] == " ":
+        elif len(line)==2:
+          continue  # ran into this problem with period14glider gun -- an empty "#C" comment
+				elif line[2] == " ":
           comment = line[3:]
         else:
           comment = line  # this shouldn't happen, but you never know
         # fix the comment lines that refer to the RLE location
-        if comment[-len(item)-4:]==item+".rle":  # TODO: figure out why this didn't work
+        if comment[-len(item)-4:]==item+".rle":
           comment = comment[:-len(item)-4]+item+".cells"
         ascii += "! " + comment + "\n"
+    else:
+      noRLEheader += [item]
   except Exception as e:
     if str(e) == "HTTP Error 404: Not Found":
       # g.note("Not Found!  Type error: " + str(e) + " for " + item))
@@ -209,12 +229,13 @@ for item in sorted(pnamedict.iterkeys()):
       if item not in toobigpatternslist:  # skip patterns known to be too big for RLE -- they use other formats
         if width <=64 and height <= 100:
           missingcells += [item]
-          g.show(str(["Missing cells file = ", len(missing), "Count = ", count]))
+          g.show(str(["Number of missing cells files = ", len(missingcells), "Count of pnames = ", count]))
           # To be consistent with the code below, .cells files should be created in a separate pass
           # -- but we've already had a chance to collect width, height, and RLE from the RLE scan
-          # So we'll just make a .cells files using that info, as soon as a missinc .cells is found.
+          # So we'll just make a .cells files using that info, as soon as a missing .cells is found.
           #
-          # Notice that this means that .cells files are only created _after_ files are already on the server.
+          # Notice that this means that .cells files are only created _after_ RLE files are already on the server.
+          # That is, we're not going and looking for RLE information in the RLE namespace, only on the server.
           # This is suboptimal, because getting the .cells files there will require two bulk uploads instead of one.
           # On the other hand, doing that in one step needs more code:
           # TODO:  get RLE from raw RLE namespace if we're going to be uploading that
@@ -222,18 +243,17 @@ for item in sorted(pnamedict.iterkeys()):
           #
           pat = g.parse(rleonly)
           if len(pat)%2 == 0:  # don't try to make a .cells for a multistate file like RLE:briansbrainp3
-	    g.new(item)
-	    g.putcells(pat)
-	    r = g.getrect()
-	    for y in range(r[3]):
-	      for x in range(r[2]):
-	        ascii+="O" if g.getcell(x+r[0],y+r[1]) > 0 else "."
-	      ascii+="\n"
-	    with open(cellsfolder + item + ".cells","w") as f:
-	      f.write(ascii)
-	else:
-	  toobigforcells += [item]
-
+	          g.new(item)
+	          g.putcells(pat)
+	            r = g.getrect()
+	            for y in range(r[3]):
+	              for x in range(r[2]):
+	                ascii+="O" if g.getcell(x+r[0],y+r[1]) > 0 else "."
+	                ascii+="\n"
+	            with open(cellsfolder + item + ".cells","w") as f:
+	              f.write(ascii)
+        else:  # width and/or height are too big
+          toobigforcells += [item]
     else:
       g.note(str(e) + " for cells pname " + item) ##########################################
 
@@ -300,5 +320,6 @@ for pname in missingsynth:
       f.write(rle)
     g.show("Wrote " + filename)
 
-g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells))
-g.note("Done!  Exceptions written to clipboard.")
+g.note("Done!  Click OK to write exceptions to clipboard.")
+g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells) \
+               + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader))
