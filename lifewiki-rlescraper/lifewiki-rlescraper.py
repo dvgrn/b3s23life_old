@@ -58,7 +58,9 @@ def retrieveparam(article, param, s):
   pval=pnamedef[pnamedef.index("=")+1:].strip()
   return pval
     
-# first collect all pages of non-redirect links from the Special:AllPages list
+# first collect all pages of non-redirect links
+#   from the Special:AllPages list
+###############################################
 linklist=[]
 url = 'http://conwaylife.com/wiki/Special:AllPages'
 response = urllib2.urlopen(url)
@@ -71,7 +73,9 @@ while html.find(searchstr)>-1:
   linklist+=[link]
   html = html[end:]
 
-# follow each link, retrieve the page of links, and collect all the relevant article names on it
+# follow each link, retrieve the page of links
+# and collect all the relevant article names on it
+##################################################
 articlelist = []
 for url in linklist:
   response = urllib2.urlopen(url)
@@ -99,11 +103,12 @@ for url in linklist:
 
 # now start collecting pname references from each article,
 #   with discoverers and discoveryears when possible
+##########################################################
 pnamedict = {}
 capitalizedpnames = []
 noRLEheader = []
 
-for item in articlelist: ###################################
+for item in articlelist:
   if item[:6]!="/wiki/":
     g.note("Weird article link: " +item)
     continue
@@ -138,7 +143,9 @@ for item in articlelist: ###################################
       pnamedict[pname] = pnamedict[pname] + [url, location, discoverer, discoveryear]
       # g.note("Found multiple uses of " + pname + ":\n"+str(pnamedict[pname]))
 
-# go through dictionary of all pnames found, looking for raw RLE for either pattern or synthesis or .cells
+# go through dictionary of all pnames found, looking for
+# raw RLE for either pattern or synthesis or .cells
+########################################################
 missing, missingsynth, missingcells,toobigforcells = [], [], [], []
 count = 0
 # g.note("Starting check of pnames")
@@ -185,7 +192,7 @@ for item in sorted(pnamedict.iterkeys()):
           comment = line[2:]
         elif len(line)==2:
           continue  # ran into this problem with period14glider gun -- an empty "#C" comment
-				elif line[2] == " ":
+        elif line[2] == " ":
           comment = line[3:]
         else:
           comment = line  # this shouldn't happen, but you never know
@@ -202,8 +209,9 @@ for item in sorted(pnamedict.iterkeys()):
         missing += [item]
       # g.show(str(["Missing = ", len(missing), "Count = ", count]))
     else:
-      g.note(str(e) + " for rle pname " + item) ###########################################
-  
+      g.note(str(e) + " for rle pname " + item)
+
+# check for an uploaded {pname}_synth.rle  
   url = 'http://www.conwaylife.com/patterns/' + item + "_synth.rle"
   try:
     response = urllib2.urlopen(url)
@@ -216,8 +224,9 @@ for item in sorted(pnamedict.iterkeys()):
         missingsynth += [item]
         # g.show(str(["Missing synth = ", len(missing), "Count = ", count]))
     else:
-      g.note(str(e) + " for synth pname " + item) ##########################################
+      g.note(str(e) + " for synth pname " + item)
 
+# check for an uploaded {pname}.cells  
   url = 'http://www.conwaylife.com/patterns/' + item + ".cells"
   try:
     response = urllib2.urlopen(url)
@@ -243,22 +252,24 @@ for item in sorted(pnamedict.iterkeys()):
           #
           pat = g.parse(rleonly)
           if len(pat)%2 == 0:  # don't try to make a .cells for a multistate file like RLE:briansbrainp3
-	          g.new(item)
-	          g.putcells(pat)
-	            r = g.getrect()
-	            for y in range(r[3]):
-	              for x in range(r[2]):
-	                ascii+="O" if g.getcell(x+r[0],y+r[1]) > 0 else "."
-	                ascii+="\n"
-	            with open(cellsfolder + item + ".cells","w") as f:
-	              f.write(ascii)
+            g.new(item)
+            g.putcells(pat)
+            r = g.getrect()
+            for y in range(r[3]):
+              for x in range(r[2]):
+                ascii+="O" if g.getcell(x+r[0],y+r[1]) > 0 else "."
+              ascii+="\n"
+            with open(cellsfolder + item + ".cells","w") as f:
+              f.write(ascii)
         else:  # width and/or height are too big
           toobigforcells += [item]
     else:
       g.note(str(e) + " for cells pname " + item) ##########################################
 
-s=""
-# create RLE files for any patterns that have raw RLE but can not be found on the LifeWiki server
+# create RLE files for any patterns that have raw RLE
+#   but can not be found on the LifeWiki server
+#####################################################
+s=""  # cumulative error report
 for pname in missing:
   url = 'http://conwaylife.com/w/index.php?title=RLE:' + pname + '&action=edit'
   try:
@@ -267,7 +278,8 @@ for pname in missing:
   except:
     s+="\n" + url + "\n"+pname+":  Not Found (or other) error"
   if html.find('name="wpTextbox1">')==-1:
-    s+="\n" + url + "\n"+pname+":  Could not find RLE textbox in HTML.  Article probably doesn't exist."
+    s+="\n" + url + "\n"+pname+":  Could not find RLE textbox in HTML.  Article must have pname but no LifeViewer animation."
+    g.show("No raw RLE for '" + pname + ".")
   else:
     start = html.index('name="wpTextbox1">')
     rle = html[start+18:html.index('!',start+17)+1]
@@ -290,8 +302,9 @@ for pname in missing:
       f.write(rle)
     g.show("Wrote " + filename)
 
-# create files for any pattern syntheses that have raw RLE but can not be found on the server
-# g.note("Starting scan for missing syntheses...")
+# create files for any pattern syntheses that have raw RLE
+#   but can not be found on the server
+##########################################################
 for pname in missingsynth:
   url = 'http://conwaylife.com/w/index.php?title=RLE:' + pname + '_synth&action=edit'
   try:
@@ -301,7 +314,7 @@ for pname in missingsynth:
     # s+="\n" + url + "\n"+pname+":  Not Found (or other) error"
     continue  # for syntheses this is pretty normal, no need to mention it
   if html.find('name="wpTextbox1">')==-1:
-    g.show(pname+"_synth:  Could not find RLE textbox in HTML.  Article probably doesn't exist.")
+    g.show(pname+"_synth:  Could not find RLE textbox in HTML.")
   else:
     s+="\n" + url + "\n" + pname + "_synth: found synthesis that has not yet been uploaded."
     start = html.index('name="wpTextbox1">')
