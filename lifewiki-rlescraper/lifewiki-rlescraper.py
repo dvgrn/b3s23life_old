@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v0.9.py, beta release
+# lifewiki-rlescraper-v1.0.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -14,6 +14,8 @@
 #    determined from the header line of the raw RLE file.
 # Version 0.9 checks that every infobox pname has "rle = true" and "plaintext = true"
 #    (embedded viewers automatically add RLE and plaintext links via template change)
+# Version 1.0 does a better job of checking that articles reported to be missing
+#     "rle = true" parameters actually contain an infobox
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
@@ -58,6 +60,11 @@ toobigarticleslist = ['0E0P_metacell', 'Caterloopillar', 'Caterpillar', 'Centipe
                       'Linear_propagator', 'Orthogonoid', 'Parallel_HBK', 'Pi_calculator', 'Shield_bug', \
                       'Spartan_universal_computer-constructor', 'Telegraph', 'Waterbear']
 
+templatetypes = ['{{Agar', '{{Conduit', '{{Crawler', '{{Fuse', '{{GrowingSpaceship', '{{Gun', '{{InductionCoil', \
+                 '{{Methuselah', '{{MovingBreeder', '{{Oscillator', '{{Pattern', '{{Puffer', '{{Reflector', \
+                 '{{Rotor', '{{Sawtooth', '{{Spaceship', '{{Stilllife', '{{UnitCell', '{{Wave', '{{Wick', '{{Wickstretcher']
+
+
 def retrieveparam(article, param, s):
   if s.find(param)<0:
     g.note("Setting clipboard to current html -- can't find '"+param+"'.")
@@ -72,7 +79,15 @@ def retrieveparam(article, param, s):
     g.note("Could not find definition of parameter '"+param+"'.")
     g.setclipstr(s)
     g.exit()
-    
+
+def hasinfobox(s):
+  hasinfobox = False
+  for item in templatetypes:
+    if s.find(item)>-1:
+      hasinfobox = True
+      break
+  return hasinfobox
+
 # first collect all pages of non-redirect links
 #   from the Special:AllPages list
 ###############################################
@@ -145,7 +160,7 @@ for item in articlelist:
       discoveryear=retrieveparam(articlename, "discoveryear", html)
     if html.find("|rle")<0: # pipe character included because "rle" is too common -- e.g., it's in "Charles Corderman"
       if articlename not in toobigarticleslist:
-        if html.find("|name")>-1: # only add articles to report if they actually have an infobox
+        if hasinfobox(html):
           norleparam += [articlename]
     else:
       rletext = retrieveparam(articlename, "rle", html)
@@ -153,7 +168,7 @@ for item in articlelist:
         norleparam += ["[nonstandard value for '"+articlename+"' rle = "+rletext+"]"]
     if html.find("|plaintext")<0:
       if articlename not in toobigarticleslist:
-        if html.find("|name")>-1: # only add articles to report if they actually have an infobox
+        if hasinfobox(html):
           noplaintextparam += [articlename]
     else:
       plaintexttext = retrieveparam(articlename, "plaintext", html)
