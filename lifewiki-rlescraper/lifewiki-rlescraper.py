@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v0.8.py, beta release
+# lifewiki-rlescraper-v0.9.py, beta release
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -12,6 +12,8 @@
 # Version 0.8 also checks for capital letters in pnames, and complains if found.
 #    Also added a "noRLEheader" list for patterns where pattern size can't be
 #    determined from the header line of the raw RLE file.
+# Version 0.9 checks that every infobox pname has "rle = true" and "plaintext = true"
+#    (embedded viewers automatically add RLE and plaintext links via template change)
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
@@ -50,13 +52,26 @@ toobigpatternslist = ["0e0pmetacell","caterloopillar","caterpillar","centipede",
                       "linearpropagator","orthogonoid","parallelhbk","picalculator","shieldbug","succ",     \
                       "telegraph","waterbear"]
 
+# same list as before, but article names, just to keep them off of the "no rle/plaintext param" lists
+toobigarticleslist = ['0E0P_metacell', 'Caterloopillar', 'Caterpillar', 'Centipede', 'Centipede_caterloopillar', \
+                      'Collatz_5n%2B1_simulator', 'Demonoid', 'Gemini', 'Half-baked_knightship', 'HBK_gun', \
+                      'Linear_propagator', 'Orthogonoid', 'Parallel_HBK', 'Pi_calculator', 'Shield_bug', \
+                      'Spartan_universal_computer-constructor', 'Telegraph', 'Waterbear']
+
 def retrieveparam(article, param, s):
-  chunk = s[s.index(param):s.index(param)+256].replace("\n","|").replace("}","|")
-  if chunk.find("|")<0: g.exit("Weird chunk of HTML found in " + article + ":\n" + s[s.index(param):512])
-  pnamedef = chunk[:chunk.index("|")]
-  if pnamedef.find("=")<0: g.exit("Weird definition found in " + article + ":\n" + pnamedef)
-  pval=pnamedef[pnamedef.index("=")+1:].strip()
-  return pval
+  if s.find(param)<0:
+    g.note("Setting clipboard to current html -- can't find '"+param+"'.")
+    g.setclipstr(s)
+    g.exit()
+  regexstr = param+r'\s*=\s*(.*)$' #######################
+  match = re.search(regexstr, s, re.MULTILINE)
+  if match:
+    pval = match.group(1)+"|"
+    return pval[:pval.index("|")] # handle the case where newlines are not added before each pipe character
+  else:
+    g.note("Could not find definition of parameter '"+param+"'.")
+    g.setclipstr(s)
+    g.exit()
     
 # first collect all pages of non-redirect links
 #   from the Special:AllPages list
@@ -105,7 +120,7 @@ for url in linklist:
 #   with discoverers and discoveryears when possible
 ##########################################################
 pnamedict = {}
-capitalizedpnames = []
+capitalizedpnames, norleparam, noplaintextparam = [], [], []
 noRLEheader = []
 
 for item in articlelist:
@@ -117,12 +132,34 @@ for item in articlelist:
   response = urllib2.urlopen(url)
   g.show("Checking " + url)
   html = response.read()
+  begintext = html.find('wpTextbox1">')
+  if begintext<0:
+    g.note("Could not find article text textbox 'wpTextbox1' in HTML for " + articlename + ".")
+  else:
+    html = html[begintext+11:]
   discoverer, discoveryear="", ""
   if html.find("pname")>-1:
     if html.find("discoverer")>-1:
       discoverer=retrieveparam(articlename, "discoverer", html)
     if html.find("discoveryear")>-1:
       discoveryear=retrieveparam(articlename, "discoveryear", html)
+    if html.find("|rle")<0: # pipe character included because "rle" is too common -- e.g., it's in "Charles Corderman"
+      if articlename not in toobigarticleslist:
+        if html.find("|name")>-1: # only add articles to report if they actually have an infobox
+          norleparam += [articlename]
+    else:
+      rletext = retrieveparam(articlename, "rle", html)
+      if rletext != "true":
+        norleparam += ["[nonstandard value for '"+articlename+"' rle = "+rletext+"]"]
+    if html.find("|plaintext")<0:
+      if articlename not in toobigarticleslist:
+        if html.find("|name")>-1: # only add articles to report if they actually have an infobox
+          noplaintextparam += [articlename]
+    else:
+      plaintexttext = retrieveparam(articlename, "plaintext", html)
+      if plaintexttext != "true":
+        noplaintextparam += ["[nonstandard value for '"+articlename+"' plaintext = "+plaintexttext+"]"]
+
   while html.find("pname")>-1:
     nextpname = html.find("pname")
     location = "infobox"
@@ -335,4 +372,5 @@ for pname in missingsynth:
 
 g.note("Done!  Click OK to write exceptions to clipboard.")
 g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells) \
-               + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader))
+               + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader) \
+               + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox; " + str(noplaintextparam))
