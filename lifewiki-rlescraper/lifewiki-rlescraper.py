@@ -33,7 +33,10 @@
 #        script should ideally resolve all these differences, either by
 #        reverting changes on the LifeWiki or by submitting the new
 #        version of the RLE (from the RLE: namespace) for upload.
-# TODO:  Look also for JavaRLE / JavaCells links, upload any missing files.
+# TODO:  find a way to mark embedded viewers with oversized RLE patterns,
+#        so that the plaintext link doesn't show up -- or redirect that link
+# TODO:  track down bug where a trailing comment after the RLE keeps the
+#        .cells pattern from being created (unless it's the lack of #N?)
 
 import golly as g
 import urllib2
