@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.0.py
+# lifewiki-rlescraper-v1.1.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -16,6 +16,7 @@
 #    (embedded viewers automatically add RLE and plaintext links via template change)
 # Version 1.0 does a better job of checking that articles reported to be missing
 #     "rle = true" parameters actually contain an infobox
+# Version 1.1 reports LifeWiki synthesis costs for articles with apgcodes
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
@@ -42,10 +43,12 @@ import golly as g
 import urllib2
 import re
 
-samplepath = "C:/users/{username}/Desktop/"
+# Change the path here, and optionally the output folder names...
+samplepath = "C:/users/greedd/Desktop/"
 outfolder = samplepath + "LWrle/"
 cellsfolder = samplepath + "LWcells/"
 
+# ... and *don't* change the path here!
 if samplepath == "C:/users/{username}/Desktop/":
   g.note("Please edit the output paths on lines 38-40 of the script before running this script.  " \
        + "If samplepath, outfolder and cellsfolder do not point to folders that you have permission to write to, " \
@@ -79,7 +82,7 @@ def retrieveparam(article, param, s):
     pval = match.group(1)+"|"
     return pval[:pval.index("|")] # handle the case where newlines are not added before each pipe character
   else:
-    g.note("Could not find definition of parameter '"+param+"'.")
+    g.note("Could not find definition of parameter '"+param+"' in article '"+article+"'.")
     g.setclipstr(s)
     g.exit()
 
@@ -140,6 +143,7 @@ for url in linklist:
 pnamedict = {}
 capitalizedpnames, norleparam, noplaintextparam = [], [], []
 noRLEheader = []
+apgcodes = []
 
 for item in articlelist:
   if item[:6]!="/wiki/":
@@ -157,6 +161,7 @@ for item in articlelist:
     html = html[begintext+11:]
   discoverer, discoveryear="", ""
   if html.find("pname")>-1:
+    pname = retrieveparam(articlename, 'pname', html)
     if html.find("discoverer")>-1:
       discoverer=retrieveparam(articlename, "discoverer", html)
     if html.find("discoveryear")>-1:
@@ -178,6 +183,14 @@ for item in articlelist:
       if plaintexttext != "true":
         noplaintextparam += ["[nonstandard value for '"+articlename+"' plaintext = "+plaintexttext+"]"]
 
+    if html.find("|synthesis ")>-1 or html.find("|synthesis=")>-1:
+      synth=retrieveparam(articlename, "synthesis", html)
+    else:
+      synth="none"
+      
+    if html.find("|apgcode")>-1:
+      apgcodes+=[(articlename, pname, retrieveparam(articlename, "apgcode", html), synth)]
+  
   while html.find("pname")>-1:
     nextpname = html.find("pname")
     location = "infobox"
@@ -391,4 +404,5 @@ for pname in missingsynth:
 g.note("Done!  Click OK to write exceptions to clipboard.")
 g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells) \
                + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader) \
-               + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox; " + str(noplaintextparam))
+               + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox; " + str(noplaintextparam) \
+               + "\napgcodes found: " + str(apgcodes))
