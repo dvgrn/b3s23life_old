@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.1.py
+# lifewiki-rlescraper-v1.2.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -17,6 +17,7 @@
 # Version 1.0 does a better job of checking that articles reported to be missing
 #     "rle = true" parameters actually contain an infobox
 # Version 1.1 reports LifeWiki synthesis costs for articles with apgcodes
+# Version 1.2 exports info about oscillators, guns and conduits with discoverer and date
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
@@ -44,9 +45,11 @@ import urllib2
 import re
 
 # Change the path here, and optionally the output folder names...
-samplepath = "C:/users/greedd/Desktop/"
+samplepath = "C:/users/{username}/Desktop/"
 outfolder = samplepath + "LWrle/"
 cellsfolder = samplepath + "LWcells/"
+
+RLEfolder = samplepath + "RLEdata/"
 
 # ... and *don't* change the path here!
 if samplepath == "C:/users/{username}/Desktop/":
@@ -145,71 +148,79 @@ capitalizedpnames, norleparam, noplaintextparam = [], [], []
 noRLEheader = []
 apgcodes = []
 
-for item in articlelist:
-  if item[:6]!="/wiki/":
-    g.note("Weird article link: " +item)
-    continue
-  articlename = item[6:]
-  url = 'http://conwaylife.com/w/index.php?title=' + articlename + '&action=edit'
-  response = urllib2.urlopen(url)
-  g.show("Checking " + url)
-  html = response.read()
-  begintext = html.find('wpTextbox1">')
-  if begintext<0:
-    g.note("Could not find article text textbox 'wpTextbox1' in HTML for " + articlename + ".")
-  else:
-    html = html[begintext+11:]
-  discoverer, discoveryear="", ""
-  if html.find("pname")>-1:
-    pname = retrieveparam(articlename, 'pname', html)
-    if html.find("discoverer")>-1:
-      discoverer=retrieveparam(articlename, "discoverer", html)
-    if html.find("discoveryear")>-1:
-      discoveryear=retrieveparam(articlename, "discoveryear", html)
-    if html.find("|rle")<0: # pipe character included because "rle" is too common -- e.g., it's in "Charles Corderman"
-      if articlename not in toobigarticleslist:
-        if hasinfobox(html):
-          norleparam += [articlename]
+with open(RLEfolder + "RLEdata.csv","w") as f:
+  for item in articlelist:
+    if item[:6]!="/wiki/":
+      g.note("Weird article link: " +item)
+      continue
+    articlename = item[6:]
+    url = 'http://conwaylife.com/w/index.php?title=' + articlename + '&action=edit'
+    response = urllib2.urlopen(url)
+    g.show("Checking " + url)
+    html = response.read()
+    begintext = html.find('wpTextbox1">')
+    if begintext<0:
+      g.note("Could not find article text textbox 'wpTextbox1' in HTML for " + articlename + ".")
     else:
-      rletext = retrieveparam(articlename, "rle", html)
-      if rletext != "true":
-        norleparam += ["[nonstandard value for '"+articlename+"' rle = "+rletext+"]"]
-    if html.find("|plaintext")<0:
-      if articlename not in toobigarticleslist:
-        if hasinfobox(html):
-          noplaintextparam += [articlename]
-    else:
-      plaintexttext = retrieveparam(articlename, "plaintext", html)
-      if plaintexttext != "true":
-        noplaintextparam += ["[nonstandard value for '"+articlename+"' plaintext = "+plaintexttext+"]"]
-
-    if html.find("|synthesis ")>-1 or html.find("|synthesis=")>-1:
-      synth=retrieveparam(articlename, "synthesis", html)
-    else:
-      synth="none"
-      
-    if html.find("|apgcode")>-1:
-      apgcodes+=[(articlename, pname, retrieveparam(articlename, "apgcode", html), synth)]
+      html = html[begintext+11:]
+    discoverer, discoveryear="", ""
+    if html.find("pname")>-1:
+      pname = retrieveparam(articlename, 'pname', html)
+      if html.find("discoverer")>-1:
+        discoverer=retrieveparam(articlename, "discoverer", html)
+      if html.find("discoveryear")>-1:
+        discoveryear=retrieveparam(articlename, "discoveryear", html)
+      if html.find("|rle")<0: # pipe character included because "rle" is too common -- e.g., it's in "Charles Corderman"
+        if articlename not in toobigarticleslist:
+          if hasinfobox(html):
+            norleparam += [articlename]
+      else:
+        rletext = retrieveparam(articlename, "rle", html)
+        if rletext != "true":
+          norleparam += ["[nonstandard value for '"+articlename+"' rle = "+rletext+"]"]
+      if html.find("|plaintext")<0:
+        if articlename not in toobigarticleslist:
+          if hasinfobox(html):
+            noplaintextparam += [articlename]
+      else:
+        plaintexttext = retrieveparam(articlename, "plaintext", html)
+        if plaintexttext != "true":
+          noplaintextparam += ["[nonstandard value for '"+articlename+"' plaintext = "+plaintexttext+"]"]
   
-  while html.find("pname")>-1:
-    nextpname = html.find("pname")
-    location = "infobox"
-    embedviewer = html.find("EmbedViewer")
-    if embedviewer>-1 and nextpname>embedviewer:
-      # can't trust discoverer or discoveryear tags for this pattern
-      location = "embedded"
-      discoverer=""
-      discoveryear=""
-    pname = retrieveparam(articlename, "pname",html)
-    if pname.lower() != pname:
-      capitalizedpnames += [pname]
-    g.show(url + " : " + pname+", " + discoverer + ", " + discoveryear)
-    html = html[html.index("pname")+5:]
-    if pname not in pnamedict:
-      pnamedict[pname] = [url, location, discoverer, discoveryear]
-    else:
-      pnamedict[pname] = pnamedict[pname] + [url, location, discoverer, discoveryear]
-      # g.note("Found multiple uses of " + pname + ":\n"+str(pnamedict[pname]))
+      if html.find("|synthesis ")>-1 or html.find("|synthesis=")>-1:
+        synth=retrieveparam(articlename, "synthesis", html)
+      else:
+        synth="none"
+      
+      if html.find("|apgcode")>-1:
+        apgcodes+=[(articlename, pname, retrieveparam(articlename, "apgcode", html), synth)]
+
+      if html.find("{{Oscillator")>-1:
+        f.write(str([pname, articlename, discoverer, discoveryear])[1:-1]+", 'Oscillator'\n")
+      if html.find("{{Gun")>-1:
+        f.write(str([pname, articlename, discoverer, discoveryear])[1:-1]+", 'Gun'\n")
+      if html.find("{{Conduit")>-1:
+        f.write(str([pname, articlename, discoverer, discoveryear])[1:-1]+", 'Conduit'\n")
+      
+    while html.find("pname")>-1:
+      nextpname = html.find("pname")
+      location = "infobox"
+      embedviewer = html.find("EmbedViewer")
+      if embedviewer>-1 and nextpname>embedviewer:
+        # can't trust discoverer or discoveryear tags for this pattern
+        location = "embedded"
+        discoverer=""
+        discoveryear=""
+      pname = retrieveparam(articlename, "pname",html)
+      if pname.lower() != pname:
+        capitalizedpnames += [pname]
+      g.show(url + " : " + pname+", " + discoverer + ", " + discoveryear)
+      html = html[html.index("pname")+5:]
+      if pname not in pnamedict:
+        pnamedict[pname] = [url, location, discoverer, discoveryear]
+      else:
+        pnamedict[pname] = pnamedict[pname] + [url, location, discoverer, discoveryear]
+        # g.note("Found multiple uses of " + pname + ":\n"+str(pnamedict[pname]))
 
 # go through dictionary of all pnames found, looking for
 # raw RLE for either pattern or synthesis or .cells
