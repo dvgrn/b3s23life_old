@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.2.py
+# lifewiki-rlescraper-v1.3.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
