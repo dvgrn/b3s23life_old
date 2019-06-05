@@ -18,6 +18,14 @@
 #     "rle = true" parameters actually contain an infobox
 # Version 1.1 reports LifeWiki synthesis costs for articles with apgcodes
 # Version 1.2 exports info about oscillators, guns and conduits with discoverer and date
+# Version 1.3 creates five separate lists of apgcodes:
+#    - apgcodes where the LifeWiki synthesis cost agrees with the Catagolue cost
+#    - apgcodes where the LifeWiki synthesis cost is greater than the Catagolue cost
+#    - apgcodes where the LifeWiki synthesis cost is less than the Catagolue cost
+#    - apgcodes associated with a synthesis on the LifeWiki but not on Catagolue
+#    - apgcodes associated with a synthesis on Catagolue but not on the LifeWiki
+#        These lists will not include objects on Catagolue for which there is no
+#        article on the LifeWiki at all, so no apgcode listed for crossreference.
 #
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
@@ -39,25 +47,48 @@
 #        so that the plaintext link doesn't show up -- or redirect that link
 # TODO:  track down bug where a trailing comment after the RLE keeps the
 #        .cells pattern from being created (unless it's the lack of #N?)
+# TODO:  automate retrieval of synthesiscosts.txt, but only do it on specific
+#        request (in response to getstring question) and update the local copy
 
 import golly as g
 import urllib2
 import re
 
 # Change the path here, and optionally the output folder names...
-samplepath = "C:/users/{username}/Desktop/"
-outfolder = samplepath + "LWrle/"
-cellsfolder = samplepath + "LWcells/"
-
-RLEfolder = samplepath + "RLEdata/"
+samplepath = "C:/users/{username}/Desktop/LW/"
+outfolder = samplepath + "rle/"
+cellsfolder = samplepath + "cells/"
+rlefolder = samplepath + "rledata/"
+# The following folder should contain an updated synthesis file from Catagolue:
+#   https://catagolue.appspot.com/textcensus/b3s23/synthesis-costs
+synthfile = samplepath + "synthesiscosts/synthesiscosts.txt"
 
 # ... and *don't* change the path here!
-if samplepath == "C:/users/{username}/Desktop/":
-  g.note("Please edit the output paths on lines 38-40 of the script before running this script.  " \
-       + "If samplepath, outfolder and cellsfolder do not point to folders that you have permission to write to, " \
+if samplepath == "C:/users/{username}/Desktop/LW/":
+  g.note("Please edit the paths on lines 58-64 of the script before running this script.  " \
+       + "If samplepath, outfolder, cellsfolder, rlefolder do not point to folders " \
+       + " that you have permission to write to, or if synthfile is not present, " \
        + "the data collection process will eventually fail with an error.")
   g.exit()
 
+# first load synth costs from Catagolue into a dictionary
+with open(synthfile,"r") as f:
+  foundheader = False
+  catapgcodes = {}
+  for line in f:
+    if foundheader == False:
+      if line!='"apgcode","cost"\n':
+        # TODO:  automate retrieval of synthesiscosts.txt, but only do it on specific request, and update the local copy
+        g.exit("synthesiscosts.txt not in correct format.\nGet a copy of https://catagolue.appspot.com/textcensus/b3s23/synthesis-costs .")
+      foundheader = True
+      continue
+    if line.find(',')>-1:
+      apgcode, coststr = line.replace('"','').split(',')
+      if coststr[:9]=="100000000": coststr=coststr[1:]
+      cost = int(coststr)
+      if cost == 999999999999999999L: cost = -1
+      catapgcodes[apgcode]=cost    
+  
 toobigpatternslist = ["0e0pmetacell","caterloopillar","caterpillar","centipede","centipede caterloopillar", \
                       "collatz5nplus1simulator","demonoid","gemini","halfbakedknightship","hbkgun",         \
                       "linearpropagator","orthogonoid","parallelhbk","picalculator","shieldbug","succ",     \
@@ -116,7 +147,7 @@ while html.find(searchstr)>-1:
 # and collect all the relevant article names on it
 ##################################################
 articlelist = []
-for url in linklist:
+for url in linklist: ##############################################
   response = urllib2.urlopen(url)
   html = response.read()
   beginindex = html.find('<table class="mw-allpages-table-chunk">')
@@ -144,12 +175,16 @@ for url in linklist:
 #   with discoverers and discoveryears when possible
 ##########################################################
 pnamedict = {}
-capitalizedpnames, norleparam, noplaintextparam = [], [], []
-noRLEheader = []
-apgcodes = []
+capitalizedpnames, norleparam, noRLEheader = [], [], []
+noplaintextparam = {}
+apgcodesLWsynthagreeswithC = []
+apgcodesLWsynthbetterthanC = []
+apgcodesLWsynthworsethanC = []
+apgcodesLWsynthbutnoCsynth = []
+apgcodesnoLWsynthbutCsynth = []
 
-with open(RLEfolder + "RLEdata.csv","w") as f:
-  for item in articlelist:
+with open(rlefolder + "rledata.csv","w") as f:
+  for item in articlelist: #########################
     if item[:6]!="/wiki/":
       g.note("Weird article link: " +item)
       continue
@@ -181,7 +216,7 @@ with open(RLEfolder + "RLEdata.csv","w") as f:
       if html.find("|plaintext")<0:
         if articlename not in toobigarticleslist:
           if hasinfobox(html):
-            noplaintextparam += [articlename]
+            noplaintextparam[pname] = articlename
       else:
         plaintexttext = retrieveparam(articlename, "plaintext", html)
         if plaintexttext != "true":
@@ -193,7 +228,24 @@ with open(RLEfolder + "RLEdata.csv","w") as f:
         synth="none"
       
       if html.find("|apgcode")>-1:
-        apgcodes+=[(articlename, pname, retrieveparam(articlename, "apgcode", html), synth)]
+        code = retrieveparam(articlename, "apgcode", html)
+        if code in catapgcodes: #Catagolue has a synthesis
+          if synth == "none":
+            apgcodesnoLWsynthbutCsynth += [(articlename, pname, code, synth)]
+          else:
+            synthC = int(synth)
+            synthLW = catapgcodes[code]
+            if synthC > synthLW:
+              apgcodesLWsynthbetterthanC  += [(articlename, pname, code, synthC, "better than", synthLW)]
+            elif synthC < synthLW:
+              apgcodesLWsynthworsethanC  += [(articlename, pname, code, synthC, "worse than", synthLW)]
+            else:
+              apgcodesLWsynthagreeswithC += [(articlename, pname, code, synth)]
+        else:
+          if synth != "none":
+            apgcodesLWsynthbutnoCsynth += [(articlename, pname, code, synth)]
+          else:
+            pass # no synthesis in either LW or Catagolue -- nothing to do
 
       if html.find("{{Oscillator")>-1:
         f.write(str([pname, articlename, discoverer, discoveryear])[1:-1]+", 'Oscillator'\n")
@@ -225,7 +277,7 @@ with open(RLEfolder + "RLEdata.csv","w") as f:
 # go through dictionary of all pnames found, looking for
 # raw RLE for either pattern or synthesis or .cells
 ########################################################
-missing, missingsynth, missingcells,toobigforcells = [], [], [], []
+missing, missingsynth, missingcells, toobigforcells = [], [], [], []
 count = 0
 # g.note("Starting check of pnames")
 for item in sorted(pnamedict.iterkeys()):
@@ -342,8 +394,11 @@ for item in sorted(pnamedict.iterkeys()):
               f.write(ascii)
         else:  # width and/or height are too big
           toobigforcells += [item]
+          # remove from the list of articles that could have cells files but don't
+          if item in noplaintextparam:
+	      noplaintextparam.pop(item,"Default value. Means if item is not there, I don't care, don't want error.")
     else:
-      g.note(str(e) + " for cells pname " + item) ##########################################
+      pass     # g.note(str(e) + " for cells pname " + item) ##########################################
 
 # create RLE files for any patterns that have raw RLE
 #   but can not be found on the LifeWiki server
@@ -416,4 +471,8 @@ g.note("Done!  Click OK to write exceptions to clipboard.")
 g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells) \
                + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader) \
                + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox; " + str(noplaintextparam) \
-               + "\napgcodes found: " + str(apgcodes))
+               + "\napgcodes where LifeWiki synth agrees with Catagolue: " + str(apgcodesLWsynthagreeswithC) \
+               + "\napgcodes where LifeWiki synth is better than Catagolue: " + str(apgcodesLWsynthbetterthanC) \
+               + "\napgcodes where LifeWiki synth is worse than Catagolue: " + str(apgcodesLWsynthworsethanC) \
+               + "\napgcodes where LifeWiki synth exists but no Catagolue synth: " +str(apgcodesnoLWsynthbutCsynth) \
+               )
