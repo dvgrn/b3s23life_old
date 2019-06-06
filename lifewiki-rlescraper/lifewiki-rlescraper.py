@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.3.py
+# lifewiki-rlescraper-v1.4.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -26,7 +26,8 @@
 #    - apgcodes associated with a synthesis on Catagolue but not on the LifeWiki
 #        These lists will not include objects on Catagolue for which there is no
 #        article on the LifeWiki at all, so no apgcode listed for crossreference.
-#
+# Version 1.4 removes some special cases that get reported erroneously,
+#    and fixes a series of logic errors in the apgcode lists.
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
 #
@@ -93,6 +94,8 @@ toobigpatternslist = ["0e0pmetacell","caterloopillar","caterpillar","centipede",
                       "collatz5nplus1simulator","demonoid","gemini","halfbakedknightship","hbkgun",         \
                       "linearpropagator","orthogonoid","parallelhbk","picalculator","shieldbug","succ",     \
                       "telegraph","waterbear"]
+shouldnothaverleparam = ['Camelship', 'Unique_father_problem']
+shouldbecapitalized = ['UnknownPattern']
 
 # same list as before, but article names, just to keep them off of the "no rle/plaintext param" lists
 toobigarticleslist = ['0E0P_metacell', 'Caterloopillar', 'Caterpillar', 'Centipede', 'Centipede_caterloopillar', \
@@ -208,7 +211,8 @@ with open(rlefolder + "rledata.csv","w") as f:
       if html.find("|rle")<0: # pipe character included because "rle" is too common -- e.g., it's in "Charles Corderman"
         if articlename not in toobigarticleslist:
           if hasinfobox(html):
-            norleparam += [articlename]
+            if articlename not in shouldnothaverleparam:
+              norleparam += [articlename]
       else:
         rletext = retrieveparam(articlename, "rle", html)
         if rletext != "true":
@@ -230,20 +234,20 @@ with open(rlefolder + "rledata.csv","w") as f:
       if html.find("|apgcode")>-1:
         code = retrieveparam(articlename, "apgcode", html)
         if code in catapgcodes: #Catagolue has a synthesis
+          synthLW = catapgcodes[code]
           if synth == "none":
-            apgcodesnoLWsynthbutCsynth += [(articlename, pname, code, synth)]
+            apgcodesnoLWsynthbutCsynth += [(articlename, pname, code, synth, "should be", synthLW)]
           else:
             synthC = int(synth)
-            synthLW = catapgcodes[code]
             if synthC > synthLW:
-              apgcodesLWsynthbetterthanC  += [(articlename, pname, code, synthC, "better than", synthLW)]
+              apgcodesLWsynthbetterthanC  += [(articlename, pname, code, synthLW, "better than", synthC)]
             elif synthC < synthLW:
-              apgcodesLWsynthworsethanC  += [(articlename, pname, code, synthC, "worse than", synthLW)]
+              apgcodesLWsynthworsethanC  += [(articlename, pname, code, synthLW, "worse than", synthC)]
             else:
               apgcodesLWsynthagreeswithC += [(articlename, pname, code, synth)]
         else:
           if synth != "none":
-            apgcodesLWsynthbutnoCsynth += [(articlename, pname, code, synth)]
+            apgcodesLWsynthbutnoCsynth += [(articlename, pname, code, synth, "not in Catagolue")]
           else:
             pass # no synthesis in either LW or Catagolue -- nothing to do
 
@@ -265,7 +269,8 @@ with open(rlefolder + "rledata.csv","w") as f:
         discoveryear=""
       pname = retrieveparam(articlename, "pname",html)
       if pname.lower() != pname:
-        capitalizedpnames += [pname]
+        if pname not in shouldbecapitalized:
+          capitalizedpnames += [pname]
       g.show(url + " : " + pname+", " + discoverer + ", " + discoveryear)
       html = html[html.index("pname")+5:]
       if pname not in pnamedict:
@@ -470,9 +475,10 @@ for pname in missingsynth:
 g.note("Done!  Click OK to write exceptions to clipboard.")
 g.setclipstr(s + "\nCells files created: " + str(missingcells) + "\nPatterns too big to create cells files: " + str(toobigforcells) \
                + "\nIllegal capitalized pnames: " + str(capitalizedpnames) + "\npnames with no RLE header: " + str(noRLEheader) \
-               + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox; " + str(noplaintextparam) \
+               + "\nNo RLE param in infobox: " + str(norleparam) + "\nNo plaintext param in infobox: " + str(noplaintextparam) \
                + "\napgcodes where LifeWiki synth agrees with Catagolue: " + str(apgcodesLWsynthagreeswithC) \
                + "\napgcodes where LifeWiki synth is better than Catagolue: " + str(apgcodesLWsynthbetterthanC) \
                + "\napgcodes where LifeWiki synth is worse than Catagolue: " + str(apgcodesLWsynthworsethanC) \
-               + "\napgcodes where LifeWiki synth exists but no Catagolue synth: " +str(apgcodesnoLWsynthbutCsynth) \
+               + "\napgcodes where LifeWiki synth exists but no Catagolue synth: " +str(apgcodesLWsynthbutnoCsynth) \
+               + "\napgcodes where Catagolue synth exists but no LifeWiki synth: " +str(apgcodesnoLWsynthbutCsynth) \
                )
