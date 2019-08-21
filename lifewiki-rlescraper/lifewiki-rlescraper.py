@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.4.py
+# lifewiki-rlescraper-v1.5.py
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -30,6 +30,8 @@
 #    and fixes a series of logic errors in the apgcode lists.
 # Pretty much the only good thing about this code is that it works, and saves
 #   a considerable amount of admin time creating and uploading files one by one.
+# Version 1.5 fixes a minor bug where extra blank rows were created in the
+#   comments section of new .cells files
 #
 # DONE:  add a check for {pname}_synth.rle,
 #        and create file for upload if not found in pattern collection
@@ -323,6 +325,8 @@ for item in sorted(pnamedict.iterkeys()):
       rleonly = html[nextnewline+1:]
       ascii=""
       for line in html.split("\n"):  # collect any comments and add them to .cells file
+        if line[-1:]=="\r": line = line[:-1] # Windows newline is actually \r\n,
+                                             # and this code was leaving behind an extra \r
         if line[0]!="#": break
         if line[1]==" ":
           comment = line[2:]
@@ -347,7 +351,7 @@ for item in sorted(pnamedict.iterkeys()):
     else:
       g.note(str(e) + " for rle pname " + item)
 
-# check for an uploaded {pname}_synth.rle  
+  # check for an uploaded {pname}_synth.rle  
   url = 'http://www.conwaylife.com/patterns/' + item + "_synth.rle"
   try:
     response = urllib2.urlopen(url)
@@ -362,7 +366,7 @@ for item in sorted(pnamedict.iterkeys()):
     else:
       g.note(str(e) + " for synth pname " + item)
 
-# check for an uploaded {pname}.cells  
+  # check for an uploaded {pname}.cells  
   url = 'http://www.conwaylife.com/patterns/' + item + ".cells"
   try:
     response = urllib2.urlopen(url)
