@@ -1,4 +1,15 @@
-# lifewiki-rlescraper-v1.5.py
+# lifewiki-rlescraper-v1.6.py
+# Pretty much the only good thing about this code is that it works, and saves a
+#   considerable amount of admin time creating commented files for upload one by one.
+# The script does several things:
+#   1) reads "All pages" category on LifeWiki to find all main-namespace articles.
+#   2) Checks for RLE associated with each object's pname in the wiki's /patterns folder.
+#   3) Checks also for existing _synth.rle or .cells files for each pname.
+#   4) For cases where no RLE is found, checks the RLE namespace for RLE:{pname}.
+#   5) Creates commented pattern file with whatever discoverer/year info is available
+#   6) Compares Catagolue's best known synthesis for each object to infobox numbers
+#   7) Produces a report listing all discrepancies that might need to be addressed.
+#
 # Version 0.6 of this script was used to generate and upload 387 missing RLE files on 
 #    http://www.conwaylife.com/wiki,
 # that were present in the RLE namespace under RLE:{pname} or RLE:{pname}_synth
@@ -28,10 +39,9 @@
 #        article on the LifeWiki at all, so no apgcode listed for crossreference.
 # Version 1.4 removes some special cases that get reported erroneously,
 #    and fixes a series of logic errors in the apgcode lists.
-# Pretty much the only good thing about this code is that it works, and saves
-#   a considerable amount of admin time creating and uploading files one by one.
 # Version 1.5 fixes a minor bug where extra blank rows were created in the
 #   comments section of new .cells files
+# Version 1.6 (15 Oct 2019) adds fixes for new MediaWiki version, auto-creates folders
 #
 # DONE:  add a check for {pname}_synth.rle,
 #        and create file for upload if not found in pattern collection
@@ -52,26 +62,41 @@
 #        .cells pattern from being created (unless it's the lack of #N?)
 # TODO:  automate retrieval of synthesiscosts.txt, but only do it on specific
 #        request (in response to getstring question) and update the local copy
+# TODO:  refactor the scanning system so that .cells files can be created
+#        at the same time as .rle to be uploaded (currently this takes two passes,
+#        so to get .cells file for new articles, first .rle files are created
+#        and (manually) uploaded, then those same .rle files are downloaded again
+#        the next time the script is run, and are used to make .cells files)
 
 import golly as g
 import urllib2
 import re
+import os
 
-# Change the path here, and optionally the output folder names...
-samplepath = "C:/users/{username}/Desktop/LW/"
+samplepath = g.getstring("Enter path to generate .rle and .cells files","C:/users/{username}/Desktop/LW/")
+if samplepath == "C:/users/{username}/Desktop/LW/":
+  g.note("Please run this script again and change the sample path to something that works on your system.\n\n" \
+       + "If the path you supply does not point to folders that you have permission to write to, " \
+       + "or if synthfile is not present, the data collection process will eventually fail with an error.")
+  g.exit()
+
 outfolder = samplepath + "rle/"
 cellsfolder = samplepath + "cells/"
 rlefolder = samplepath + "rledata/"
-# The following folder should contain an updated synthesis file from Catagolue:
-#   https://catagolue.appspot.com/textcensus/b3s23/synthesis-costs
-synthfile = samplepath + "synthesiscosts/synthesiscosts.txt"
+synthfolder = samplepath + "synthesis-costs/"
+synthfile = synthfolder + "synthesis-costs.txt"
 
-# ... and *don't* change the path here!
-if samplepath == "C:/users/{username}/Desktop/LW/":
-  g.note("Please edit the paths on lines 58-64 of the script before running this script.  " \
-       + "If samplepath, outfolder, cellsfolder, rlefolder do not point to folders " \
-       + " that you have permission to write to, or if synthfile is not present, " \
-       + "the data collection process will eventually fail with an error.")
+if not os.path.exists(samplepath):
+  resp = g.getstring("No folder exists at '" + samplepath + "'.  Create it and subfolders?","Yes")
+  if resp.lower()[:1]=="y":
+    os.makedirs(outfolder)  # this has no effect if folder(s) already present and/or contain files
+    os.makedirs(cellsfolder)
+    os.makedirs(rlefolder)
+    os.makedirs(synthfolder)
+if not os.path.exists(synthfile):
+  g.note("No synthfile is present at '" + synthfile + ".\n"
+       + "Please download this file from\nhttps://catagolue.appspot.com/textcensus/b3s23/synthesis-costs ."
+       + "\nOpen the file 'link.txt' in the lifewiki-rlescraper repository and follow instructions to download.")
   g.exit()
 
 # first load synth costs from Catagolue into a dictionary
@@ -82,7 +107,8 @@ with open(synthfile,"r") as f:
     if foundheader == False:
       if line!='"apgcode","cost"\n':
         # TODO:  automate retrieval of synthesiscosts.txt, but only do it on specific request, and update the local copy
-        g.exit("synthesiscosts.txt not in correct format.\nGet a copy of https://catagolue.appspot.com/textcensus/b3s23/synthesis-costs .")
+        g.exit("synthesiscosts.txt not in correct format.\nGet a copy of https://catagolue.appspot.com/textcensus/b3s23/synthesis-costs ." \
+               "It will be 10MB or more, so you may have to create a link\nto the file and download it directly, instead of opening it in a browser.")
       foundheader = True
       continue
     if line.find(',')>-1:
@@ -136,26 +162,34 @@ def hasinfobox(s):
 # first collect all pages of non-redirect links
 #   from the Special:AllPages list
 ###############################################
-linklist=[]
-url = 'http://conwaylife.com/wiki/Special:AllPages'
+url = 'https://conwaylife.com/w/index.php?title=Special:AllPages&from=%24rats&hideredirects=1'
+linklist = [url]
 response = urllib2.urlopen(url)
 html = response.read()
-searchstr = '<td class="mw-allpages-alphaindexline"><a href="/w/index.php?title=Special:AllPages&amp;from='
-while html.find(searchstr)>-1:
-  start = html.index(searchstr)
-  end = html.index(">", start+len(searchstr))
-  link=r"http://conwaylife.com/"+html[start+48:end-1].replace("&amp;","&")+"&hideredirects=1"
-  linklist+=[link]
-  html = html[end:]
+while 1:
+   searchind1 = html.find('<div class="mw-allpages-nav">')
+   searchind2 = html.find('<div class="mw-allpages-body">')
+   substr = html[searchind1:searchind2]
+   if substr.find("Previous page")>0: substr=substr[substr.find("Previous page"):]
+   ind = substr.find('href="/w/index')
+   if ind<0: break  # the last page won't have a "next" link, so we're done collecting at that point
+   newurl = 'https://conwaylife.com' + substr[ind+6:substr.find('"',ind+6)]
+   newurl = newurl.replace("&amp;","&")
+   linklist+=[newurl]
+   g.show("Retrieving " + newurl)
+   response = urllib2.urlopen(newurl)
+   html = response.read()
+   if len(linklist)>10: break
 
 # follow each link, retrieve the page of links
 # and collect all the relevant article names on it
 ##################################################
 articlelist = []
 for url in linklist: ##############################################
+  g.show("Retrieving " + url)
   response = urllib2.urlopen(url)
   html = response.read()
-  beginindex = html.find('<table class="mw-allpages-table-chunk">')
+  beginindex = html.find('<ul class="mw-allpages-chunk">') 
   endindex = html.find('<div class="printfooter">')
   if beginindex>-1:
     if endindex>-1:
@@ -226,7 +260,7 @@ with open(rlefolder + "rledata.csv","w") as f:
       else:
         plaintexttext = retrieveparam(articlename, "plaintext", html)
         if plaintexttext != "true":
-          noplaintextparam += ["[nonstandard value for '"+articlename+"' plaintext = "+plaintexttext+"]"]
+          noplaintextparam[articlename] = "[nonstandard value for '"+str(articlename)+"' plaintext = "+str(plaintexttext)+"]"
   
       if html.find("|synthesis ")>-1 or html.find("|synthesis=")>-1:
         synth=retrieveparam(articlename, "synthesis", html)
