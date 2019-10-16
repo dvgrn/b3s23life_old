@@ -1,4 +1,4 @@
-# lifewiki-rlescraper-v1.6.py
+# lifewiki-rlescraper-v1.7.py
 # Pretty much the only good thing about this code is that it works, and saves a
 #   considerable amount of admin time creating commented files for upload one by one.
 # The script does several things:
@@ -42,6 +42,7 @@
 # Version 1.5 fixes a minor bug where extra blank rows were created in the
 #   comments section of new .cells files
 # Version 1.6 (15 Oct 2019) adds fixes for new MediaWiki version, auto-creates folders
+# Version 1.7 (16 Oct 2019) repairs a reporting bug re: synth #s from Catagolue/LifeWiki
 #
 # DONE:  add a check for {pname}_synth.rle,
 #        and create file for upload if not found in pattern collection
@@ -270,11 +271,11 @@ with open(rlefolder + "rledata.csv","w") as f:
       if html.find("|apgcode")>-1:
         code = retrieveparam(articlename, "apgcode", html)
         if code in catapgcodes: #Catagolue has a synthesis
-          synthLW = catapgcodes[code]
+          synthC = catapgcodes[code]
           if synth == "none":
             apgcodesnoLWsynthbutCsynth += [(articlename, pname, code, synth, "should be", synthLW)]
           else:
-            synthC = int(synth)
+            synthLW = int(synth)
             if synthC > synthLW:
               apgcodesLWsynthbetterthanC  += [(articlename, pname, code, synthLW, "better than", synthC)]
             elif synthC < synthLW:
