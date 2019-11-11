@@ -107,7 +107,7 @@ for i in range(0,numstates,2):
   statedict[parts[0]]=i
 
 g.new("Compiled " +  progname)
-g.putcells(startpat)
+# g.putcells(startpat)
 
 for k in range(0,numstates,2):
   g.putcells(Snark_N, 184+k*72, -20+k*56)
