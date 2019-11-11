@@ -156,7 +156,11 @@ def check_keyboard():
 #   so the order of the program lines doesn't really matter.
 #   Turn the program into a dictionary.
 for item in proglines:
-   label, bitval, nextstate, instr = item.replace(", ",",").split("; ")
+   fourparts = item.replace(", ",",").split("; ") 
+   if len(fourparts) != 4:
+      g.note("Failed to parse: " + item)
+      g.exit()
+   label, bitval, nextstate, instr = fourparts
    program[label+";"+bitval]=[nextstate,instr]
 
 state, nextstate, nextoutput, outputtext = "START","INITIAL","Z",""
