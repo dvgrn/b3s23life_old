@@ -1,4 +1,7 @@
-# APGompiler.py, version 0.4 (Osqrtlogt test)
+# APGompiler.py, version 0.5 (Osqrtlogt test)
+# version 0.5:  if GPC pattern is open, create compiled program on new layer, copy into GPC
+#               -- this is a quick temporary fix until the modularized compiler is complete
+#               The copy/paste math assumes that the first INITIAL state will jump to the second state (!)
 
 import golly as g
 
@@ -65,7 +68,7 @@ Snark_N = g.parse("""9b2o$8bobo$2b2o4bo$o2bo2b2ob4o$2obobobobo2bo$3bobobobo$3bob
 
 ZNZstopper = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo!")
 
-startpat = g.parse("bo$2bo$3o4$22bo$20b3o$19bo$19b2o$25bo$23b3o$22bo$15bo6b2o$14bobo$14b2o!",-5,33)
+startpat = g.parse("bo$2bo$3o2$3bo2$22bo$20b3o$19bo$19b2o$25bo$23b3o$22bo$15bo6b2o$14bobo$14b2o!",-5,33)
 
 APGsembly = """INITIAL; Z; A1; READ SQ
 INITIAL; NZ; A1; READ SQ
@@ -106,9 +109,17 @@ for i in range(0,numstates,2):
   parts = proglines[i].split("; ")
   statedict[parts[0]]=i
 
-g.new("Compiled " +  progname)
-# g.putcells(startpat)
+if g.getname()[:3]!="GPC":
+  g.new("Compiled " +  progname)
+  GPClayer = -1
+else:
+  GPClayer = g.getlayer()
+  g.addlayer()
+  g.setname("Compiled " + progname)
 
+g.putcells(startpat)
+
+firstreflx, firstrefly = -1, -1
 for k in range(0,numstates,2):
   g.putcells(Snark_N, 184+k*72, -20+k*56)
   g.putcells(Snark_E, 27323 - 24400 + numstates*64, 21147 - 24400 +5984 -k*16 + numstates*64)
@@ -124,6 +135,14 @@ for i in range(numstates):
   offset = statedict[nextstate]
   
   g.putcells(transrefl,-150 - len(outputlist)*64 + i*64 - offset*16, 165 + len(outputlist)*64 + i*64 + offset*16)
+  if firstreflx ==-1:
+    firstreflx = -150 - len(outputlist)*64 + i*64 - offset*16
+    firstrefly = 165 + len(outputlist)*64 + i*64 + offset*16
 
 g.putcells(ZNZstopper,-9 + numstates*64,29 + numstates*64)
 g.fit()
+
+if GPClayer != -1:
+  calcpat = g.getcells(g.getrect())
+  g.setlayer(GPClayer)
+  g.putcells(calcpat, 77924 - firstreflx, 38284 - firstrefly)  # this is the location of the key first reflector in calculator, in the GPC
