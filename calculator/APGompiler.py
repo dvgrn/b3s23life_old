@@ -6,6 +6,37 @@
 
 import golly as g
 
+APGsembly = """# Time to support comments and blank lines in APGsembly
+# A 'ZZ' means only Z input is possible for this state
+INITIAL; ZZ; A1; READ SQ
+A1; Z; B1; SET SQ, NOP
+A1; NZ; C1; NOP
+B1; ZZ; B2; DEC SQX
+B2; Z; B3; DEC SQY
+B2; NZ; B2; DEC SQX
+B3; Z; B4; TDEC R0
+B3; NZ; B3; DEC SQY
+B4; Z; B5; TDEC R1
+B4; NZ; B4; TDEC R0
+B5; Z; B6; TDEC R2
+B5; NZ; B5; TDEC R1
+B6; Z; A1; READ SQ
+B6; NZ; B6; TDEC R2
+# No possibility of an NZ input here
+C1; ZZ; C2; TDEC R0
+C2; Z; C4; DEC SQX
+C2; NZ; C3; INC SQX, NOP
+# removed another NZ line here
+C3; ZZ; A1; READ SQ
+C4; Z; C5; INC SQY, INC R1, NOP
+C4; NZ; C4; DEC SQX
+# use * format here, because DEC SQX can return either Z or NZ
+C5; *; C6; TDEC R1
+C6; Z; C7; TDEC R2
+C6; NZ; C6; INC R2, TDEC R1
+C7; Z; A1; READ SQ
+C7; NZ; C7; INC R0, INC R1, TDEC R2"""
+
 outputlist = ["NOP", "OUTPUT 0", "OUTPUT 1", "OUTPUT 2", "OUTPUT 3", "OUTPUT 4", "OUTPUT 5", "OUTPUT 6", "OUTPUT 7", "OUTPUT 8", "OUTPUT 9", "OUTPUT .", \
              "DEC SQX", "INC SQX", "READ SQ", "SET SQ", "DEC SQY", "INC SQY", \
              "RESET T0", "SET T0", "READ T0", "DEC T0", "INC T0", "RESET T1", "SET T1", "READ T1", "DEC T1", "INC T1", \
@@ -80,43 +111,9 @@ Snark_N = g.parse("""9b2o$8bobo$2b2o4bo$o2bo2b2ob4o$2obobobobo2bo$3bobobobo$3bob
 
 ZNZstopper = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo!")
 
-# startpat = g.parse("bo$2bo$3o2$3bo2$22bo$20b3o$19bo$19b2o$25bo$23b3o$22bo$15bo6b2o$14bobo$14b2o!",-5,33)
 startpat = g.parse("3o$o$bo!", 255, 58)
 
-APGsembly = """# Time to support comments and blank lines in APGsembly
-# A 'ZZ' means only Z input is possible for this state
-INITIAL; ZZ; A1; READ SQ
-A1; Z; B1; SET SQ, NOP
-A1; NZ; C1; NOP
-B1; ZZ; B2; DEC SQX
-B2; Z; B3; DEC SQY
-B2; NZ; B2; DEC SQX
-B3; Z; B4; TDEC R0
-B3; NZ; B3; DEC SQY
-B4; Z; B5; TDEC R1
-B4; NZ; B4; TDEC R0
-B5; Z; B6; TDEC R2
-B5; NZ; B5; TDEC R1
-B6; Z; A1; READ SQ
-B6; NZ; B6; TDEC R2
-
-# No possibility of an NZ input here
-C1; ZZ; C2; TDEC R0
-C2; Z; C4; DEC SQX
-C2; NZ; C3; INC SQX, NOP
-
-# removed another NZ line here
-C3; ZZ; A1; READ SQ
-C4; Z; C5; INC SQY, INC R1, NOP
-C4; NZ; C4; DEC SQX
-
-# use * format here, because DEC SQX can return either Z or NZ
-C5; *; C6; TDEC R1
-C6; Z; C7; TDEC R2
-C6; NZ; C6; INC R2, TDEC R1
-C7; Z; A1; READ SQ
-C7; NZ; C7; INC R0, INC R1, TDEC R2"""
-progname = "Osqrtlogt"
+progname = "letters-test"
 
 proglines = APGsembly.split('\n')
 
@@ -172,8 +169,10 @@ g.putcells(startpat)
 firstreflx, firstrefly = -1, -1
 for k in range(0,numstates,2):
   g.putcells(Snark_N, 184+k*72, -20+k*56)
-  g.putcells(Snark_E, 27323 - 24400 -4900 + numstates*64 + len(outputdict)*16, 21147 - 24400 -4900 +5984 -k*16 + numstates*64 + len(outputdict)*16)
-  g.putcells(Snark_S, -4900 -2021 -k*24 - len(outputdict)*32 + len(outputdict)*16 + numstates*64, 7667 -4900 +k*8 + len(outputdict)*32 +len(outputdict)*16 + numstates*64)
+  g.putcells(Snark_E, -2177 + numstates*72 + len(outputdict)*16, -2369 -k*16 + numstates*72 + len(outputdict)*16)
+  g.putcells(Snark_S, -7121 -k*24 - len(outputdict)*32 + len(outputdict)*16 + numstates*72, 2567 +k*8 + len(outputdict)*32 +len(outputdict)*16 + numstates*72)
+  # The '72' above is mostly 64 per Z/NZ program row, but also 16 more cells diagonally for each state
+  #   (there are only half as many states as rows) to leave enough space for all the reflectors at the bottom.
 for i in range(numstates):
   parts = progonly[i].split("; ")
   if i%2==0:
@@ -206,3 +205,4 @@ if GPClayer != -1:
   calcpat = g.getcells(g.getrect())
   g.setlayer(GPClayer)
   g.putcells(calcpat, 77924 - firstreflx, 38284 - firstrefly)  # this is the location of the key first reflector in calculator, in the GPC
+  
