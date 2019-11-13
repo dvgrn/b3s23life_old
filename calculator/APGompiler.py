@@ -1,8 +1,9 @@
-# APGompiler.py, version 0.6 (Osqrtlogt test)
-# Version 0.5:  if GPC pattern is open, create compiled program on new layer, copy into GPC
+# APGompiler.py, version 0.7 (Osqrtlogt test)
+# Version 0.5:  If GPC pattern is open, create compiled program on new layer, copy into GPC
 #               -- this is a quick temporary fix until the modularized compiler is complete
 #               The copy/paste math assumes that the first INITIAL state will jump to the second state (!)
-# Version 0.6:  add some error-checking related to paired Z/NZ options, and * syntax
+# Version 0.6:  Add some error-checking related to paired Z/NZ options, and * syntax
+# Version 0.7:  Fix problem with ZZ and * syntax appearing on very last line of program
 
 import golly as g
 
@@ -35,7 +36,11 @@ C5; *; C6; TDEC R1
 C6; Z; C7; TDEC R2
 C6; NZ; C6; INC R2, TDEC R1
 C7; Z; A1; READ SQ
-C7; NZ; C7; INC R0, INC R1, TDEC R2"""
+C7; NZ; C7; INC R0, INC R1, TDEC R2
+
+# unreachable program states for compiler testing
+C8; ZZ; C8; NOP
+C9; *; C9; NOP"""
 
 outputlist = ["NOP", "OUTPUT 0", "OUTPUT 1", "OUTPUT 2", "OUTPUT 3", "OUTPUT 4", "OUTPUT 5", "OUTPUT 6", "OUTPUT 7", "OUTPUT 8", "OUTPUT 9", "OUTPUT .", \
              "DEC SQX", "INC SQX", "READ SQ", "SET SQ", "DEC SQY", "INC SQY", \
@@ -115,7 +120,7 @@ startpat = g.parse("3o$o$bo!", 255, 58)
 
 progname = "letters-test"
 
-proglines = APGsembly.split('\n')
+proglines = (APGsembly + "\nEND OF PROGRAM; Z\nEND OF PROGRAM; NZ").split('\n')
 
 # pre-processing to remove blank lines and comments, and deal with * / ZZ format
 progonly = []
@@ -127,6 +132,8 @@ for line in proglines:
       NZflag = 1
     else:
       NZflag = 0
+      if line == "END OF PROGRAM; NZ":
+        break
       
       # process the next pair of lines, make sure it's a matched Z + NZ set
       Zparts = Zline.split("; ")
@@ -151,6 +158,7 @@ for line in proglines:
           g.exit()
 
 numstates = len(progonly)
+
 statedict = {}
 for i in range(0,numstates,2):
   parts = progonly[i].split("; ")
@@ -205,4 +213,5 @@ if GPClayer != -1:
   calcpat = g.getcells(g.getrect())
   g.setlayer(GPClayer)
   g.putcells(calcpat, 77924 - firstreflx, 38284 - firstrefly)  # this is the location of the key first reflector in calculator, in the GPC
-  
+  if g.getname()[:6]=="GPC-2^":
+    g.setstep(int(g.getname()[6:8]))
