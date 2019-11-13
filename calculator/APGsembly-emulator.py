@@ -1,9 +1,52 @@
-# APGsembly code emulator, version 0.314159+ (beta)
-# remove phi calculator and other test programs, activate pi calculator
+# APGsembly code emulator, version 0.5 (beta)
+#   Version 0.314159+: remove phi calculator and other test programs, activate pi calculator
+#   Version 0.5: add support for "ZZ" and "*" preprocessor formats, mostly copied from APGompiler.py
 
 import golly as g
 from glife.text import make_text
 import types
+
+APGsembly = """# Time to support comments and blank lines in APGsembly
+# A 'ZZ' means only Z input is possible for this state
+INITIAL; ZZ; A1; READ SQ
+A1; Z; B1; SET SQ, NOP
+A1; NZ; C1; NOP
+B1; ZZ; B2; DEC SQX
+B2; Z; B3; DEC SQY
+B2; NZ; B2; DEC SQX
+B3; Z; B4; TDEC R0
+B3; NZ; B3; DEC SQY
+B4; Z; B5; TDEC R1
+B4; NZ; B4; TDEC R0
+B5; Z; B6; TDEC R2
+B5; NZ; B5; TDEC R1
+B6; Z; A1; READ SQ
+B6; NZ; B6; TDEC R2
+
+# No possibility of an NZ input here
+C1; ZZ; C2; TDEC R0
+C2; Z; C4; DEC SQX
+C2; NZ; C3; INC SQX, NOP
+
+# removed another NZ line here
+C3; ZZ; A1; READ SQ
+C4; Z; C5; INC SQY, INC R1, NOP
+C4; NZ; C4; DEC SQX
+
+# use * format here, because DEC SQX can return either Z or NZ
+C5; *; C6; TDEC R1
+C6; Z; C7; TDEC R2
+C6; NZ; C6; INC R2, TDEC R1
+C7; Z; A1; READ SQ
+C7; NZ; C7; INC R0, INC R1, TDEC R2
+
+# unreachable program states for compiler testing
+C8; ZZ; C8; NOP
+C9; *; C9; NOP"""
+program = {}
+registers = {}
+memory = {}
+progname = "Osqrtlogt"
 
 mullookup = {"MUL0 00000":["Z", "00000"],"MUL1 00000":["Z", "00101"],"MUL0 00001":["NZ", "00000"],"MUL1 00001":["NZ", "00101"],
 	     "MUL0 00010":["Z", "00001"],"MUL1 00010":["Z", "00110"],"MUL0 00011":["NZ", "00001"],"MUL1 00011":["NZ", "00110"],
@@ -88,44 +131,45 @@ sublookup = {"000 stopper0 bit0 A1":["NONE","000 stopper1 bit1"],"000 stopper0 b
 	     "111 stopper1 bit0 B1":["NZ","100 stopper0 bit1"],"111 stopper1 bit1 A1":["NONE","FAILURE"],
              "111 stopper1 bit1 B0":["NZ","100 stopper0 bit1"],"111 stopper1 bit1 B1":["Z","100 stopper0 bit1"]}
 
-memory = {}
 
-# pi program
-APGsembly = """INITIAL; Z; A1; READ SQ
-INITIAL; NZ; A1; READ SQ
-A1; Z; B1; SET SQ, NOP
-A1; NZ; C1; NOP
-B1; Z; B2; DEC SQX
-B1; NZ; B2; DEC SQX
-B2; Z; B3; DEC SQY
-B2; NZ; B2; DEC SQX
-B3; Z; B4; TDEC R0
-B3; NZ; B3; DEC SQY
-B4; Z; B5; TDEC R1
-B4; NZ; B4; TDEC R0
-B5; Z; B6; TDEC R2
-B5; NZ; B5; TDEC R1
-B6; Z; A1; READ SQ
-B6; NZ; B6; TDEC R2
-C1; Z; C2; TDEC R0
-C1; NZ; C2; TDEC R0
-C2; Z; C4; DEC SQX
-C2; NZ; C3; INC SQX, NOP
-C3; Z; A1; READ SQ
-C3; NZ; A1; READ SQ
-C4; Z; C5; INC SQY, INC R1, NOP
-C4; NZ; C4; DEC SQX
-C5; Z; C6; TDEC R1
-C5; NZ; C6; TDEC R1
-C6; Z; C7; TDEC R2
-C6; NZ; C6; INC R2, TDEC R1
-C7; Z; A1; READ SQ
-C7; NZ; C7; INC R0, INC R1, TDEC R2"""
-registers = {}
-progname = "Osqrtlogt"
+proglines = (APGsembly + "\nEND OF PROGRAM; Z\nEND OF PROGRAM; NZ").split('\n')
 
-proglines = APGsembly.split("\n")
-program = {}
+# pre-processing to remove blank lines and comments, and deal with * / ZZ format
+progonly = []
+NZflag = 0
+for line in proglines:
+  if line.strip()!="" and line.strip()[:1]!="#":
+    if NZflag == 0:
+      Zline = line
+      NZflag = 1
+    else:
+      NZflag = 0
+      if line == "END OF PROGRAM; NZ":
+        break
+      
+      # process the next pair of lines, make sure it's a matched Z + NZ set
+      Zparts = Zline.split("; ")
+      NZparts = line.split("; ")
+      if Zparts[0]==NZparts[0]:
+        if Zparts[1]=="Z" and NZparts[1]=="NZ":
+          progonly += [Zline,line]
+        else:
+          g.note("Pre-processing failed on lines:\n" + Zline + "\n" + line + "\nNeed Z line followed by NZ line, or * / ZZ syntax.")
+          g.exit()
+      else:
+        if Zparts[1]=="*":
+          progonly += [Zline.replace("*","Z"),Zline.replace("*","NZ")]
+          Zline = line
+          NZflag = 1
+        elif Zparts[1]=="ZZ":
+          # in the line below, there's no .replace("; ZZ;","; Z;") in the compiler version,
+          #    because we need to know whether to use ZNZ or onlyZ component...
+          progonly += [Zline.replace("; ZZ;","; Z;"), Zparts[0]+"; NZ"]  
+          Zline = line
+          NZflag = 1
+        else:
+          g.note("Pre-processing failed on lines:\n" + Zline + "\n" + line + "\nNeed a Z and NZ line for each state, or * / ZZ syntax.")
+          g.exit()
 
 g.new(progname)
 g.setcell(0,0,1)
@@ -155,11 +199,16 @@ def check_keyboard():
 # every state has a Z and NZ jump instruction to following states,
 #   so the order of the program lines doesn't really matter.
 #   Turn the program into a dictionary.
-for item in proglines:
+for item in progonly:
    fourparts = item.replace(", ",",").split("; ") 
    if len(fourparts) != 4:
-      g.note("Failed to parse: " + item)
-      g.exit()
+      if len(fourparts) == 2:
+         # this is probably an auto-generated line for a state+Z/NZ combination that will never be reached
+         # ... so we'll try including it with empty jump and action values, and just see if it works.
+         fourparts += ["none",""]
+      else:
+         g.note("Failed to parse: " + item)
+         g.exit()
    label, bitval, nextstate, instr = fourparts
    program[label+";"+bitval]=[nextstate,instr]
 
@@ -331,3 +380,4 @@ while 1:
      else:
        g.note("Unknown instruction: " + instr + " -- ~" + i + "~")
        g.exit()
+
