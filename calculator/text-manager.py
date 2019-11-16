@@ -70,7 +70,7 @@ for j in let2cells:
 keys.sort()
 keys = keys[33:] + keys[0:33]
 
-allkeys = "0123456789 Tabcdefghijklmnopqrstuvwxyz.,"
+allkeys = "0123456789 TNGabcdefghijklmnopqrstuvwxyz.,"
 keyd = {}
 
 T6s = ""
@@ -111,10 +111,17 @@ for k in allkeys:
 
 program = {}
 
-sentence1 = "99 bottles of beer on the wall, "
-sentence2 = "99 bottles of beer."
+sentence1 = "bottles of beer on the wall, "
+sentence2 = "bottles of beer."
 sentence3 = "Take one down and pass it around, "
-sentence4 = "98 bottles of beer on the wall."
+sentence4 = "bottles of beer on the wall."
+
+sentence5 = "bottle of beer on the wall."
+sentence6 = "1 bottle of beer on the wall, 1 bottle of beer."
+
+sentence7 = "Take one down and pass it around, no more bottles of beer on the wall."
+sentence8 = "No more bottles of beer on the wall, no more bottles of beer."
+sentence9 = "Go to the store and buy some more, 99 bottles of beer on the wall."
 
 def sentcode(sent):
 	R7s = ""
@@ -124,10 +131,13 @@ def sentcode(sent):
 		for i in range(j):
 			R7s += "1"
 		
-		R7s += "0"
-
+		R7s += "01"
+		
+	R7s = R7s[:-1]
+	R7s += "0"
+	
 	return R7s
 	
-R7s = sentcode(sentence1) + sentcode(sentence2) + sentcode(sentence3) + sentcode(sentence4)
-registers = {"T6":[0,T6s], "T7":[0,R7s], "R7":len(R7s)}
+R7s = sentcode(sentence1) + sentcode(sentence2) + sentcode(sentence3) + sentcode(sentence4)+ sentcode(sentence5)+ sentcode(sentence6)+ sentcode(sentence7)+ sentcode(sentence8)+ sentcode(sentence9)
+registers = {"T6":[0,T6s], "T7":[0,R7s]}
 g.setclipstr(str(registers))
