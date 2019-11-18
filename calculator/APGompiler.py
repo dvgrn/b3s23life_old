@@ -42,6 +42,7 @@ C7; NZ; C7; INC R0, INC R1, TDEC R2
 # unreachable program states for compiler testing
 C8; ZZ; C8; NOP
 C9; *; C9; NOP"""
+progname = "Osqrtlogt-plus-test"
 
 outputlist = ["NOP", "OUTPUT 0", "OUTPUT 1", "OUTPUT 2", "OUTPUT 3", "OUTPUT 4", "OUTPUT 5", "OUTPUT 6", "OUTPUT 7", "OUTPUT 8", "OUTPUT 9", "OUTPUT .", \
              "DEC SQX", "INC SQX", "READ SQ", "SET SQ", "DEC SQY", "INC SQY", \
@@ -121,8 +122,6 @@ ZNZbackstop = g.parse("""2o126b2o$o127bo$b3o125b3o$3bo127bo7$10b2obo124b2obo$10b
 16bo127bo$10b2ob3o122b2ob3o$11bobo125bobo$11bobo125bobo$12bo127bo!""")
 
 startpat = g.parse("3o$o$bo!", 255, 58)
-
-progname = "letters-test"
 
 proglines = (APGsembly + "\nEND OF PROGRAM; Z\nEND OF PROGRAM; NZ").split('\n')
 
