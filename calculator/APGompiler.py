@@ -117,7 +117,7 @@ Snark_N = g.parse("""9b2o$8bobo$2b2o4bo$o2bo2b2ob4o$2obobobobo2bo$3bobobobo$3bob
 
 # ZNZstopper = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo!")
 
-ZNZbackstop = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo7$10b2obo124b2obo$10b2ob3o122b2ob3o$
+ZNZbackstop = g.parse("""2o126b2o$o127bo$b3o125b3o$3bo127bo7$10b2obo124b2obo$10b2ob3o122b2ob3o$
 16bo127bo$10b2ob3o122b2ob3o$11bobo125bobo$11bobo125bobo$12bo127bo!""")
 
 startpat = g.parse("3o$o$bo!", 255, 58)
