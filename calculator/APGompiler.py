@@ -1,9 +1,10 @@
-# APGompiler.py, version 0.7 (Osqrtlogt test)
+# APGompiler.py, version 0.8 (Osqrtlogt test)
 # Version 0.5:  If GPC pattern is open, create compiled program on new layer, copy into GPC
 #               -- this is a quick temporary fix until the modularized compiler is complete
 #               The copy/paste math assumes that the first INITIAL state will jump to the second state (!)
 # Version 0.6:  Add some error-checking related to paired Z/NZ options, and * syntax
 # Version 0.7:  Fix problem with ZZ and * syntax appearing on very last line of program
+# Version 0.8:  Added "ZNZbackstop" to prevent gliders leaking out of the computer when Z and NZ are both returned
 
 import golly as g
 
@@ -114,7 +115,10 @@ Snark_E = g.parse("""18b2o$18bo$20bo$2o14b5o$bo13bo$bobo12b3o$2b2o15bo$16b4o$11b
 Snark_N = g.parse("""9b2o$8bobo$2b2o4bo$o2bo2b2ob4o$2obobobobo2bo$3bobobobo$3bobob2o$4bo2$
 17b2o$8b2o7bo$8b2o5bobo$15b2o7$5b2o$6bo$3b3o$3bo!""")
 
-ZNZstopper = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo!")
+# ZNZstopper = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo!")
+
+ZNZbackstop = g.parse("2o126b2o$o127bo$b3o125b3o$3bo127bo7$10b2obo124b2obo$10b2ob3o122b2ob3o$
+16bo127bo$10b2ob3o122b2ob3o$11bobo125bobo$11bobo125bobo$12bo127bo!""")
 
 startpat = g.parse("3o$o$bo!", 255, 58)
 
@@ -206,7 +210,7 @@ for i in range(numstates):
     firstreflx = -150 - len(outputlist)*64 + i*64 - offset*16
     firstrefly = 165 + len(outputlist)*64 + i*64 + offset*16
 
-g.putcells(ZNZstopper,-49 + numstates*64,-11 + numstates*64)
+g.putcells(ZNZbackstop,-49 + numstates*64,-11 + numstates*64)
 g.fit()
 
 if GPClayer != -1:
