@@ -4,7 +4,6 @@
 # Version 0.6: Michael Simkin's visualizations for all calculator components. Writes 99 bottles of beer. 
 
 import golly as g
-from glife.text import make_text
 import types
 import time
 
