@@ -1,9 +1,12 @@
-# incremental-to-continuous-synthesis.py, version 2.0
+# incremental-to-continuous-synthesis.py, version 2.1
 #
 # Original script by Chris Cain, 31 January 2015:
 #   http://conwaylife.com/forums/viewtopic.php?p=16375#p16375
 # Auto-detect functionality added by Dave Greene, 5 February 2019:
 #   http://conwaylife.com/forums/viewtopic.php?p=69753#p69753
+# Version 2.1: start separation check at 20, not at 1
+#              and allow the time to stability to be modified
+#              so that non-power-of-2-period oscillators can be built
 #
 # To produce an automatically optimized continuous synthesis from an
 #   incremental synthesis, arrange all the stages of an incremental
@@ -26,8 +29,7 @@
 #   next recipe (generally a spaceship).
 #
 # Hard-coded assumptions include:
-#  -- each stage will match the next at T=4096, when auto-finding offset via XOR
-#     (might not work if a p3 or other non-p2^N object is built early)
+#  -- each stage will match the next at LONG_ENOUGH, when auto-finding offset via XOR
 #  -- each stage settles by 256 ticks
 #  -- initial best_delay = 200 (seems to give adequate spacing before first collision)
 #
@@ -43,6 +45,8 @@
 #        in the incremental syntheses can be corrected.
 
 import golly as g
+
+LONG_ENOUGH = int(g.getstring("Enter T value for stability check","4096"))
 
 def fill_void():
     # sample incremental 46P4H1V0 synthesis
@@ -101,20 +105,20 @@ o63bo2b2o50b2o212bobo60b2ob3o120bo2bo2bobo51b2o2bo71b2o$194b2o55bo3bo
 def find_best_selection():
     r = g.getrect()
     all = g.getcells(r)
-    sep = 1
-    # - run the pattern for 4096 ticks, get the new settled pattern
+    sep = 10
+    # - run the pattern for LONG_ENOUGH ticks, get the new settled pattern
     # - try XORing new pattern with original pattern for every possible offset up to 512
     # - one of the offsets should give the lowest total population
     #      (will probably decrease the population instead of increasing it,
     #       unless what is being built is a prolific puffer or gun or some such)
     bestscore, bestsep = len(all),-1  # = population * 2
-    allplus4096 = g.evolve(all, 4096)
+    allplus = g.evolve(all, LONG_ENOUGH)
     g.addlayer()
     while sep<=512:
         g.show("Finding stage spacing -- testing " + str(sep))
         g.new("sep=" + str(sep))
         g.putcells(all)
-        g.putcells(allplus4096,sep,0,1,0,0,1,"xor")
+        g.putcells(allplus,sep,0,1,0,0,1,"xor")
         score = int(g.getpop())
         if bestscore>score: bestscore, bestsep = score, sep
         sep += 1
@@ -286,4 +290,4 @@ for obj_list, delay in out_list:
     if delay2:
         g.putcells(delay_construction(obj_list, delay + delay2), -4*offset, offset)
 
-g.show("Done.  See continuous recipe at left.") #DMG
+g.show("Done.  See continuous recipe at left.")
