@@ -279,7 +279,7 @@ for obj_list in obj_lists[1:]:
         g.show(str(count)+": count = " + str(step) + ", delay = " + str(delay) + " -- testing for valid state " + str(i))
         if post_state(current_state, obj_list, delay - i) == valid_state:
             best_delay = delay - i
-            g.note(str(count)+": count = " + str(step) + ", delay = " + str(delay) + " -- found valid state " + str(i))
+            g.show(str(count)+": count = " + str(step) + ", delay = " + str(delay) + " -- found valid state " + str(i))
             
 
     current_state += delay_construction(obj_list, best_delay)
