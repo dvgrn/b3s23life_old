@@ -4,7 +4,8 @@
 # Version 3: make ruledict into a list of posts where the rule was found,
 #            and don't create file if it's the same post found again somehow
 #            (not sure yet why this happens on rare occasions)
-
+# TODO: fix bug pointed out by muzik (if two or more rules are posted in the same message,
+#                                     only the first rule is collected)
 import golly as g
 import urllib2
 import re
