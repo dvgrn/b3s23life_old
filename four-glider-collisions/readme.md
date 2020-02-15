@@ -15,3 +15,5 @@ It reports two- and three-glider collisions first, if those exist, the .n four-g
 It displays results in a rectangle instead of a single, often very long, horizontal line.
 
 See for example results for a search on b2o$o2bo$b2o5$2o$2o! .
+
+The subset of 4G collisions included in the database is very far from being an exhaustive enumeration.
