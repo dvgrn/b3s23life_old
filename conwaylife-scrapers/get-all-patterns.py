@@ -1,4 +1,4 @@
-# get-all-rules.py, version 1
+# get-all-patterns.py, version 1
 # Version 1: initial working version
 
 import golly as g
