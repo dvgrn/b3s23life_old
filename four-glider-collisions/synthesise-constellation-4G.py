@@ -20,7 +20,7 @@ compFiles = ["3Gcols.sjk", "4Gcols.sjk"]
 def main():
     apgcode = canonise()
     if not apgcode:
-        g.warn('Failed to detect periodic behavious after {} generations.'.format(MAXPERIOD))
+        g.warn('Failed to detect periodic behaviour after {} generations.'.format(MAXPERIOD))
     
     # 2G collisions
     if apgcode in twoGcols:
