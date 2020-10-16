@@ -1,4 +1,7 @@
-# lifewiki-rulescraper-v1.0.py
+# lifewiki-rulescraper-v1.1.py
+# v1.0: initial working version
+# v1.1: fix problem with names incorrectly containing forward slashes or backslashes
+
 import golly as g
 import urllib2
 import os
@@ -87,10 +90,15 @@ for item in articlelist:
     rulename1 = html.split("\n")[0].replace("@RULE ","").replace("\n","")
     rulename2 = item.replace("/wiki/Rule:","")
     g.show("Saving " + rulename1)
-    with open(samplepath + rulename1 + ".rule","w") as f:
+    with open(samplepath + rulename1.replace("/","").replace("\\","") + ".rule","w") as f:
       f.write(html)
     if rulename1 != rulename2:
       s += rulename1 + " doesn't match " + item + "\n"
+    if rulename1.find("/")>-1:
+      s += "(THE ABOVE IS A BAD ONE, CONTAINING FORWARD SLASHES)"
+    if rulename1.find("\\")>-1:
+      s += "(THE ABOVE IS A BAD ONE, CONTAINING BACKSLASHES)"
+    
 
 g.note("Done.  Click OK to copy list of exceptions to clipboard.")
 g.setclipstr(s)
