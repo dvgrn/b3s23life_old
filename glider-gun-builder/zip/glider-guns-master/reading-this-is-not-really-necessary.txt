@@ -1,0 +1,7 @@
+For tech-support purposes only:
+
+This file travels with glider-gun-builder-30August2019.
+
+If the patch to the 'glider-guns-master' folder was done correctly,
+a copy of this file should appear along with the README, inside the
+'glider-guns-master' folder.

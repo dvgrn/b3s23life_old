@@ -1,0 +1,356 @@
+#! /bin/bash
+#
+# createbatch
+# Create a directory of rule files by filtering out LifeViewer aliases
+# and built-in rules.
+#
+# Author: Chris Rowett
+# Version: 1.0 - 17Dec2019
+
+# patterns and results directories
+resdir=./BatchInput
+patterndir=./Patterns
+
+# aliases file
+aliasesfile=./aliases.txt
+
+# pattern rules file
+patternrulesfile=./patternrules.txt
+
+# list of tables file
+rulelistfile=./batchinput.txt
+
+# token for forum link
+forumtoken=conwaylife.com
+
+# display summary
+function summary() {
+	printf "\n\nSummary\n"
+	echo "------------------------------------"
+	echo -e "${blue}Total Rules              \t${rules}${off}"
+	echo -e "${green}Added for conversion     \t${converted}${off}"
+	echo -e "${green}Added last variant       \t${variants}${off}"
+	echo -e "${green}Existing @TREE           \t${hadtree}${off}"
+	echo -e "${cyan}Already done or duplicate\t${already}${off}"
+	echo -e "${yellow}Was an alias             \t${wasalias}${off}"
+	echo -e "${yellow}Was built-in             \t${wasbuiltin}${off}"
+	echo -e "${yellow}Not used by any pattern  \t${notused}${off}"
+	echo -e "${red}Missing @RULE            \t${missingrule}${off}"
+	echo -e "${red}No @TABLE or @TREE       \t${notableortree}${off}"
+}
+
+# interrupt handler
+function tidy() {
+	printf "\n\n"
+	echo -e "${yellow}*** User interrupt!${off}"
+	if [ -f "${rulefile}" ] ; then
+		rm -f ${rulefile}
+	fi
+	rm -f Rules/$r.table Rules/$r.tree
+	summary
+
+	exit
+}
+
+# setup color code
+function setcolors() {
+	if [ $nocolor -eq 1 ] ; then
+		# do not use color
+		off=""
+		red=""
+		green=""
+		yellow=""
+		blue=""
+		magenta=""
+		cyan=""
+		white=""
+	else
+		# terminal escape codes for text colours
+		off="\e[m"
+		red="\e[31m"
+		green="\e[32m"
+		yellow="\e[33m"
+		blue="\e[34m"
+		magenta="\e[35m"
+		cyan="\e[36m"
+		white="\e[37m"
+	fi
+}
+
+# show command usage
+function showusage() {
+	setcolors
+	echo -e "Usage: ${yellow}$BASH_SOURCE [-n | --nocolor] [-h | --help] rules...${off}"
+	echo -e "Where: \t${yellow}-n | --nocolor${off} do not use terminal colors"
+	echo -e "\t${yellow}-h | --help${off} display command help"
+	echo -e "Processes each supplied rule file and if the rule is not a LifeViewer alias"
+	echo -e "or built-in rule copies it into the ${green}${resdir}${off} directory."
+	echo -e "Finally it creates a text file with a list of these rules in ${green}${rulelistfile}${off}."
+}
+
+# whether a rule is an alias, built-in, or not referenced by any pattern
+function shouldskip {
+	result=0
+	if [ ${aliases} -eq 1 ] ; then
+		grep -q "^$u" ${aliasesfile}
+		if [ $? -eq 0 ] ; then
+			echo -e "${yellow}skipped (is an alias)${off}"
+			wasalias=$((wasalias+1))
+			result=1
+		fi
+	fi
+	if [ ${result} -eq 0 ] ; then
+		# check if it is a built-in rule
+		m=0
+		upper=${u^^}
+		for reg in ${reglist[@]} ; do
+			[[ ${upper} =~ ${reg} ]]
+			m=$?
+			if [ $m -eq 0 ] ; then
+				break
+			fi
+		done
+		if [ $m -eq 0 ]; then
+			echo -e "${yellow}skipped (is a built in rule)${off}"
+			wasbuiltin=$((wasbuiltin+1))
+			result=1
+		else
+			# check if any pattern uses the rule
+			grep -q "^${upper}" ${patternrulesfile}
+			if [ $? -ne 0 ] ; then
+				echo -e "${yellow}skipped (not used by any pattern)${off}"
+				notused=$((notused+1))
+				result=1
+			fi
+		fi
+	fi
+	return ${result}
+}
+
+# trap ctrl-c
+trap tidy INT
+
+# check command line arguments
+nocolor=0
+showhelp=0
+reg="^-"
+[[ $1 =~ $reg ]] ; match=$?
+while [ $match -eq 0 ] ; do
+	case $1 in
+		-n | --nocolor )
+			nocolor=1
+			;;
+		-h | --help )
+			showhelp=1
+			;;
+	esac
+	shift
+	[[ $1 =~ $reg ]] ; match=$?
+done
+
+# check if help was requested
+if [ $showhelp -eq 1 ] ; then
+	showusage
+	exit
+fi
+
+# check if there are any rule file specified
+if [ $# -eq 0 ] ; then
+	showusage
+	exit 1
+fi
+
+# set colors
+setcolors
+
+# statistics
+rules=0
+already=0
+wasalias=0
+wasbuiltin=0
+converted=0
+hadtree=0
+missingrule=0
+notableortree=0
+notused=0
+variants=0
+
+# flag if aliases exist
+aliases=0
+
+# initialize regular expressions to match built in rules
+# Wolfram W32
+reglist=("^_W[2468]_$", "^_W[1-9][02468]_$", "^_W1[0-9][02468]_$", "^_W2[01234][02468]_$", "_W25[024]_$")
+# totalistic, [R]History, generations: B3/S23, B3/S23History, B3/S23/5
+reglist+=("^_B[1-8]*_S[0-8]*((_[1-9][0-9]*)|(HISTORY))?_$" "^_B[1-4]*_S[0-4]*((_[1-9][0-9]*V)|(VHISTORY))?_$" "^_B[1-6]*_S[0-6]*(_([1-9][0-9]*H)|(HHISTORY))?_$")
+# totalistic, [R]History, generations: S23/B3, S23/B3History, S23/B3/5
+reglist+=("^_S[0-8]*_B[1-8]*_(([1-9][0-9]*)|(HISTORY))?_$" "^_S[0-4]*_B[1-4]*((_[1-9][0-9]*V)|(VHISTORY))?_$" "^_S[1-6]*_B[0-6]*((_[1-9][0-9]*H)|(HHISTORY))?_$")
+# totalistic, [R]History: B3S23, B3S23History
+reglist+=("^_B[1-8]*S[0-8]*(HISTORY)?_$" "^_B[1-4]*S[0-4]*V(HISTORY)?_$" "^_B[1-6]*S[0-6]*H(HISTORY)?_$")
+# totalistic, [R]History, S23B3, S23B3History
+reglist+=("^_S[0-8]*B[1-8]*(HISTORY)?_$" "^_S[0-4]*B[1-4]*V(HISTORY)?_$" "^_S[0-6]*B[1-6]*H(HISTORY)?_$")
+# totalistic, [R]History, generations: 23/3, 23/3History, 23/3/5
+reglist+=("^_[0-8]*_[1-8]*((_[1-9][0-9]*)|(HISTORY))?_$" "^_[0-4]*_[1-4]*((_[1-9][0-9]*V)|(VHISTORY))?_$" "^_[1-6]*_[0-6]*((_[1-9][0-9]*H)|(HHISTORY))?_$")
+# MAP
+reglist+=("^MAP")
+# PCA
+reglist+=("^2PCA4")
+# non-totalistic Moore B2-a/S12 or B2-aS12
+reglist+=("^_B0?(1(-?[CE]+)?)?(2(-?[CEKAIN]+)?)?(3(-?[CEKAINYQJR]+)?)?(4(-?[CEKAINYQJRTWZ]+)?)?(5(-?[CEKAINYQJR]+)?)?(6(-?[CEKAIN]+)?)?(7(-?[CE]+)?)?8?_?S0?(1(-?[CE]+)?)?(2(-?[CEKAIN]+)?)?(3(-?[CEKAINYQJR]+)?)?(4(-?[CEKAINYQJRTWZ]+)?)?(5(-?[CEKAINYQJR]+)?)?(6(-?[CEKAIN]+)?)?(7(-?[CE]+)?)?8?((_[1-9][0-9]*)|(HISTORY))?_$")
+# non-totalistic Hex B2o/S2-mH
+reglist+=("^_B0?1?(2(-?[OMP]+)?)?(3(-?[OMP]+)?)?(4(-?[OMP]+)?)?5?6?_?S0?1?(2(-?[OMP]+)?)?(3(-?[OMP]+)?)?(4(-?[OMP]+)?)?5?6?H_?((_[1-9][0-9]*)|(HHISTORY))?_$")
+# LtL R1,C16,M0,S1..2,B1..1,NM
+reglist+=("^_R[1-9][0-9]*,C[0-9]+,M[01],S[0-9]+\.\.[0-9]+,B[0-9]+\.\.[0-9]+,N[MNC]_$")
+
+# ensure the results directory exists
+mkdir -p ${resdir}
+
+# check if the aliases file exits
+if [ -f ${aliasesfile} ] ; then
+	num=`wc -l ${aliasesfile} | sed "s/ .*//"`
+	echo -e "${cyan}Using ${num} aliases from: ${green}${aliasesfile}${off}"
+	aliases=1
+else
+	echo -e "${yellow}Warning: aliases file not found: ${green}${aliasesfile}${off}"
+fi
+
+# check if the pattern rules file exists
+if [ ! -f ${patternrulesfile} ] ; then
+	# create unique list of rules from patterns
+	echo -e "${yellow}Creating pattern rules file: ${green}${patternrulesfile}${off}"
+	grep "\<rule *=" ${patterndir}/*.rle | sed "s/.*rule *= *//;s/:.*//;s/<br>//g" | dos2unix | tr [:lower:] [:upper:] | sed "s/.*/_&_/;s/ /_/g" | sort -u > ${patternrulesfile}
+fi
+num=`wc -l ${patternrulesfile} | sed "s/ .*//"`
+echo -e "${cyan}Using ${num} rules from pattern file: ${green}${patternrulesfile}${off}"
+
+# check each rule
+echo -e "Processing $# rules..."
+printf "\n"
+while [ "$1" != "" ] ; do
+	# get the next file from the command line arguments
+	f=$1
+	shift
+	rules=$((rules+1))
+
+	# check for .ruleN files
+	ruleN=0
+	if [ "${f##*.rule}" == "0" ] ; then
+		# .rule0 found so check for .rule1
+		variant=1
+		varname=${f%.*}.rule${variant}
+		cat $f | grep -v "${forumtoken}" > diff1
+		while [ ${ruleN} -eq 0 ] && [ -f ${varname} ] ; do
+			# .rule1 found so diff to see if they are duplicates
+			# remove the forum link because they will have been found in different posts
+			cat ${varname} | grep -v "${forumtoken}" > diff2
+			diff diff1 diff2 >& /dev/null
+			if [ $? -eq 1 ] ; then
+				ruleN=1
+			fi
+			variant=$((variant+1))
+			varname=${f%.*}.rule${variant}
+		done
+		rm -f diff1 diff2
+
+		# if variant found then use the highest number variant
+		links=""
+		if [ ${ruleN} -eq 1 ] ; then
+			variant=0
+			varname=${f%.*}.rule${variant}
+			while [ -f ${varname} ] ; do
+				variant=$((variant+1))
+				varname=${f%.*}.rule${variant}
+			done
+			variant=$((variant-1))
+			varname=${f%.*}.rule${variant}
+			f=${varname}
+
+			# collect the links from the earlier variants
+			linkvar=0
+			while [ ${linkvar} -lt ${variant} ] ; do
+				varname=${f%.*}.rule${linkvar}
+				forumlink=`cat ${varname} | dos2unix | grep -m 1 "${forumtoken}"`
+				if [ "${links}" == "" ] ; then
+					links="${forumlink}\n"
+				else
+					links="${links}${forumlink}\n"
+				fi
+				linkvar=$((linkvar+1))
+			done
+		fi
+	fi
+
+	# convert file to unix and add a newlines
+	rulefile=dosrule.$$
+	ruletemp=dosruletmp.$$
+	cat $f | dos2unix | iconv -c -t us-ascii -f utf-8 > ${rulefile}
+	printf "\n" >> ${rulefile}
+
+	# check for @RULE
+	grep -q "^@RULE" ${rulefile}
+	if [ $? -eq 0 ] ; then
+		# get rule name and create a version with spaces changed to underscores for lookup
+		r=`grep -m 1 "^@RULE" ${rulefile} | sed 's/@RULE *//'`
+		u=_`echo $r | sed 's/ /_/g'`_
+		echo -n "$r: "
+
+		# check if already converted
+		checkname=${resdir}/$r.rule
+		if [ -f "${checkname}" ] ; then
+			echo -e "${cyan}skipped (already converted)${off}"
+			already=$((already+1))
+		else
+			# check if it is an alias, built-in, or not used by any pattern
+			shouldskip
+			if [ $? -eq 0 ] ; then
+				# search for @TREE
+				grep -q "^@TREE" ${rulefile}
+				if [ $? -eq 1 ] ; then
+					# @TREE missing so search for @TABLE
+					grep -q "^@TABLE" ${rulefile}
+					if [ $? -eq 0 ] ; then
+						# check for variants
+						if [ ${ruleN} -eq 1 ] ; then
+							echo -e "${magenta}added variant to list${off}"
+							variants=$((variants+1))
+							l=`grep -m 1 -n ${forumtoken} ${rulefile} | sed "s/:.*//"`
+							n=$((l+1))
+							cat ${rulefile} | sed "$n,\$d" > ${ruletemp}
+							echo -e "\nNote: earlier variants of this rule were also found:" >> ${ruletemp}
+							echo -e ${links} >> ${ruletemp}
+							cat ${rulefile} | sed "1,${l}d" >> ${ruletemp}
+							mv ${ruletemp} ${rulefile}
+							cp ${rulefile} ${checkname}
+						else
+							# copy the rule
+							cp ${rulefile} ${checkname}
+
+							echo -e "${green}added to list${off}"
+							converted=$((converted+1))
+						fi
+					else
+						echo -e "${red}neither @TREE nor @TABLE found${off}"
+						notableortree=$((notableortree+1))
+					fi
+				else
+					echo -e "${green}added to lise (@TREE already exists)${off}"
+					cp ${rulefile} ${checkname}
+					hadtree=$((hadtree+1))
+				fi
+			fi
+		fi
+	else
+		echo -e "$f: ${red}mmissing @RULE${off}"
+		missingrule=$((missingrule+1))
+	fi
+
+	# remove temporary rule file
+	rm -f ${rulefile}
+done
+
+# create list of rule files for batch processing
+ls ${resdir}/*.rule > ${rulelistfile}
+
+# output statistics
+summary
+
